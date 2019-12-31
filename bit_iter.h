@@ -37,13 +37,11 @@ public:
 
     bool operator ==(BitIterator const& other) const noexcept
     {
-        //return !(*this != other);
         return (current_byte == other.current_byte) && (current_bit == other.current_bit);
     }
 
     bool operator !=(BitIterator const& other) const noexcept
     {
-        //return current_byte != other.current_byte;
         return !(*this == other);
     }
 
@@ -65,18 +63,14 @@ public:
 
     class_type & operator -= (int n)
     {
-        //int c_byte = std::to_integer<int>(current_byte);
         while (n--)
         {
-            --current_bit;
-            if (current_bit < 0)
+            if (--current_bit < 0)
             {
                 current_bit = 7;
-                //--c_byte;
                 --current_byte;
             }
         }
-        //current_byte = c_byte;
         return *this;
     }
 
