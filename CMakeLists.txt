@@ -14,7 +14,7 @@ cmake_host_system_information(RESULT myvar QUERY HOSTNAME)
 # DESKTOP-M4C21IU
 message (${myvar})
 
-set(SOURCE_FILES bit_iter.h main.cpp )
+set(SOURCE_FILES bit_iter.h main.cpp ring_iter.h)
 
 add_definitions(-Wno-deprecated )
 add_executable(executable ${SOURCE_FILES}   )

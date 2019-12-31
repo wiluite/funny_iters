@@ -18,9 +18,10 @@ public:
     mutable typename std::remove_const<ValueType>::type value;
 
 private:
-    static_assert(std::is_same<value_type, std::byte const >::value);
+    static_assert(std::is_same<value_type * , std::byte const * >::value);
     value_type * current_byte;
-    uint16_t current_bit;
+    int8_t current_bit;
+    static_assert(std::numeric_limits<decltype(current_bit)>::is_signed);
 
 private:
     explicit BitIterator(std::byte const * ptr) : current_byte (ptr), current_bit(0) {}
@@ -31,17 +32,19 @@ public:
     BitIterator& operator=(const BitIterator & other) = delete;
 
     BitIterator(BitIterator && other) noexcept = default;
-    BitIterator& operator=(BitIterator && other) noexcept = delete;
+    BitIterator& operator=(BitIterator && other) noexcept = default; //delete;
     ~BitIterator() noexcept = default;
-
-    bool operator !=(BitIterator const& other) const noexcept
-    {
-        return current_byte != other.current_byte;
-    }
 
     bool operator ==(BitIterator const& other) const noexcept
     {
-        return !(*this != other);
+        //return !(*this != other);
+        return (current_byte == other.current_byte) && (current_bit == other.current_bit);
+    }
+
+    bool operator !=(BitIterator const& other) const noexcept
+    {
+        //return current_byte != other.current_byte;
+        return !(*this == other);
     }
 
     value_type & operator *() const noexcept
@@ -54,9 +57,26 @@ public:
     {
         if (++current_bit == 8)
         {
-            ++current_byte;
             current_bit = 0;
+            ++current_byte;
         }
+        return *this;
+    }
+
+    class_type & operator -= (int n)
+    {
+        //int c_byte = std::to_integer<int>(current_byte);
+        while (n--)
+        {
+            --current_bit;
+            if (current_bit < 0)
+            {
+                current_bit = 7;
+                //--c_byte;
+                --current_byte;
+            }
+        }
+        //current_byte = c_byte;
         return *this;
     }
 
@@ -68,11 +88,18 @@ public:
     }
 };
 
+template<typename ValueType, size_t Bytes>
+BitIterator<ValueType, Bytes> operator - (BitIterator<ValueType, Bytes> const & obj, int n)
+{
+    BitIterator<ValueType, Bytes> tmp (obj);
+    return tmp -= n;
+}
+
 namespace std // for accumulate check
 {
-    int operator+ (int const & b1, std::byte b2)
+    int operator+ (int const & v1, BitIterator<const std::byte, 3>::value_type v2)
     {
-        return b1 + std::to_integer<int>(b2);
+        return v1 + std::to_integer<int>(v2);
     }
 }
 
