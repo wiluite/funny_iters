@@ -3,131 +3,150 @@
 #include <array>
 #include <cstddef>   // std::byte
 
-template <size_t Bytes>
-class BitSequence;
-
-template<typename ValueType, size_t Bytes>
-class BitIterator: public std::iterator<std::input_iterator_tag, ValueType, ptrdiff_t, void, ValueType>
+namespace funny_it
 {
-public:
-    friend class BitSequence<Bytes>;
+    template<size_t Bytes>
+    class bit_sequence;
 
-    using class_type = BitIterator<ValueType, Bytes>;
-    using value_type = ValueType;
+    template<typename ValueType, size_t Bytes>
+    class bit_iterator : public std::iterator<std::forward_iterator_tag, ValueType, ptrdiff_t, void, ValueType> {
+    public:
+        friend class bit_sequence<Bytes>;
 
-    mutable typename std::remove_const<ValueType>::type value;
+        using class_type = bit_iterator<ValueType, Bytes>;
+        using value_type = ValueType;
 
-private:
-    static_assert(std::is_same<value_type * , std::byte const * >::value);
-    value_type * current_byte;
-    int8_t current_bit;
-    static_assert(std::numeric_limits<decltype(current_bit)>::is_signed);
+        mutable typename std::remove_const<ValueType>::type value;
 
-private:
-    explicit BitIterator(std::byte const * ptr) : current_byte (ptr), current_bit(0) {}
+    private:
+        static_assert(std::is_same<value_type *, std::byte const *>::value);
+        value_type *current_byte = nullptr;
+        int8_t current_bit = 0;
+        static_assert(std::numeric_limits<decltype(current_bit)>::is_signed);
 
-public:
-    // ?
-    BitIterator(const BitIterator & other) = default;
-    BitIterator& operator=(const BitIterator & other) = delete;
+    private:
+        explicit bit_iterator(std::byte const *ptr) : current_byte(ptr), current_bit(0) {}
 
-    BitIterator(BitIterator && other) noexcept = default;
-    BitIterator& operator=(BitIterator && other) noexcept = default; //delete;
-    ~BitIterator() noexcept = default;
+    public:
+        bit_iterator(bit_iterator const & other) = default;
+        bit_iterator &operator=( bit_iterator const & other) = default;
+        bit_iterator(bit_iterator && other) noexcept = default;
+        bit_iterator &operator=(bit_iterator && other) noexcept = default;
 
-    bool operator ==(BitIterator const& other) const noexcept
-    {
-        return (current_byte == other.current_byte) && (current_bit == other.current_bit);
-    }
-
-    bool operator !=(BitIterator const& other) const noexcept
-    {
-        return !(*this == other);
-    }
-
-    value_type & operator *() const noexcept
-    {
-        value = (((*current_byte) & (std::byte(1) << current_bit)) > std::byte(0)) ? std::byte{1} : std::byte{0};
-        return value;
-    }
-
-    class_type & operator ++() noexcept
-    {
-        if (++current_bit == 8)
+        bool operator == (bit_iterator const & other) const noexcept
         {
-            current_bit = 0;
-            ++current_byte;
+            return (current_byte == other.current_byte) && (current_bit == other.current_bit);
         }
-        return *this;
-    }
 
-    class_type & operator -= (int n)
-    {
-        while (n--)
+        bool operator != (bit_iterator const & other) const noexcept
+        {
+            return !(*this == other);
+        }
+
+        value_type & operator * () const noexcept
+        {
+            return value = (((*current_byte) & (std::byte(1) << current_bit)) > std::byte(0)) ? std::byte{1} : std::byte{0};
+        }
+
+        class_type & operator ++ () noexcept
+        {
+            if (++current_bit == 8)
+            {
+                current_bit = 0;
+                ++current_byte;
+            }
+            return *this;
+        }
+
+        class_type & operator += (int n) noexcept
+        {
+            while (n--)
+            {
+                operator++();
+            }
+            return *this;
+        }
+
+        class_type & operator -- () noexcept
         {
             if (--current_bit < 0)
             {
                 current_bit = 7;
                 --current_byte;
             }
+            return *this;
         }
-        return *this;
-    }
 
-    class_type operator ++(int)
+        template <class T>
+        int operator - (T && other) const noexcept
+        {
+            return (current_byte - std::forward<T>(other).current_byte) * 8 + (current_bit - std::forward<T>(other).current_bit);
+        }
+
+        class_type operator - (int n) const noexcept
+        {
+            class_type tmp(*this);
+            tmp -= n;
+            return tmp;
+        }
+
+        class_type & operator -= (int n) noexcept
+        {
+            while (n--)
+            {
+                operator--();
+            }
+            return *this;
+        }
+
+        class_type operator ++ (int)
+        {
+            class_type ret(*this);
+            operator++();
+            return ret;
+        }
+    };
+
+    template<typename ValueType, size_t Bytes>
+    bit_iterator<ValueType, Bytes> operator+(bit_iterator<ValueType, Bytes> const &obj, int n)
     {
-        class_type ret(*this);
-        operator ++();
-        return ret;
+        bit_iterator<ValueType, Bytes> tmp(obj);
+        return tmp += n;
     }
-};
 
-template<typename ValueType, size_t Bytes>
-BitIterator<ValueType, Bytes> operator - (BitIterator<ValueType, Bytes> const & obj, int n)
-{
-    BitIterator<ValueType, Bytes> tmp (obj);
-    return tmp -= n;
+
+    template<size_t Bytes>
+    class bit_sequence
+    {
+        std::array<std::byte, Bytes> arr_;
+
+    public:
+        explicit bit_sequence(std::array<std::byte, Bytes> arr) : arr_(std::move(arr)){}
+
+        using const_iterator = bit_iterator<std::byte const, Bytes>;
+
+        [[nodiscard]] const_iterator begin() const
+        {
+            return const_iterator{std::begin(arr_)};
+        }
+
+        [[nodiscard]]const_iterator end() const
+        {
+            return const_iterator{std::end(arr_)};
+        }
+
+        [[nodiscard]]size_t size() const
+        {
+            return sizeof(std::byte) * 8 * (std::end(arr_) - std::begin(arr_));
+        }
+    };
 }
 
 namespace std // for accumulate check
 {
-    int operator+ (int const & v1, BitIterator<const std::byte, 3>::value_type v2)
+    int operator+(int const & v1, funny_it::bit_iterator<std::byte const, 3>::value_type v2)
     {
         return v1 + std::to_integer<int>(v2);
     }
 }
 
-template <size_t Bytes>
-class BitSequence {
-
-    std::array<std::byte,Bytes> arr_;
-
-public:
-    explicit BitSequence(std::array<std::byte, Bytes> arr) : arr_(std::move(arr))
-    {
-    }
-
-    using const_iterator = BitIterator<const std::byte, Bytes>;
-
-    [[nodiscard]] const_iterator begin() const
-    {
-        return const_iterator{std::begin(arr_)};
-    }
-
-    [[nodiscard]]const_iterator end() const
-    {
-        return const_iterator{std::end(arr_)};
-    }
-
-    [[nodiscard]]size_t size () const
-    {
-        return sizeof(std::byte) * 8 * (std::end(arr_) - std::begin(arr_));
-    }
-
-};
-
-template<typename... Ts>
-std::array<std::byte, sizeof...(Ts)> make_bytes(Ts&&... args) noexcept
-{
-    return {std::byte(std::forward<Ts>(args))...};
-}
