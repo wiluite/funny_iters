@@ -37,5 +37,12 @@ BOOST_AUTO_TEST_CASE( fill_data ) {
     BOOST_REQUIRE_EQUAL(*(rbs1.begin()+7), 0x32);
     BOOST_REQUIRE_EQUAL(*(rbs1.begin()+8), 0x33);
     BOOST_REQUIRE_EQUAL(*(rbs1.begin()+9), 0x34);
+
+    std::array<char,10> std_array {};
+    ring_buffer_sequence rbs2 (std_array);
+    rbs2.fill_data(external_buffer, sizeof(external_buffer));
+    rbs2.fill_data(external_buffer, sizeof(external_buffer));
+
+    BOOST_REQUIRE(rbs1 != rbs2);
 }
 

@@ -5,6 +5,7 @@
 #pragma once
 #include <iterator>
 #include <array>
+#include <algorithm>
 
 namespace funny_it
 {
@@ -27,7 +28,7 @@ namespace funny_it
         {
             return std::begin(buf_);
         }
-        V const * end() const
+        V * end() const
         {
             return std::end(buf_);
         }
@@ -41,6 +42,7 @@ namespace funny_it
         V * frame_start{};
 
     public:
+        using class_type = ring_buffer_sequence<V,N>;
         using inherited_class_type = ring_buffer_limits<V,N>;
         using inherited_class_type::begin;
         using inherited_class_type::end;
@@ -82,9 +84,15 @@ namespace funny_it
                 }
             }
         }
+        bool operator == (class_type const & other) const noexcept
+        {
+            return (std::equal(begin(), end(), other.begin())) && (head() == other.head()) && (tail() == other.tail());
+        }
 
+        bool operator != (class_type const & other) const noexcept
+        {
+            return !(*this == other);
+        }
     };
-
-
 }
 
