@@ -86,42 +86,5 @@ namespace funny_it
     };
 
 
-//    std::array<char, 20> arr1 {'a','f','g','h','b','c','d','e','f','f','g','h', 'j', '1', '1', '1', '1', '1', '1', '1'};
-//    std::array<char, 3> arr2 {'f','g','h'};
-//    auto const _ = std::find_end (arr1.rbegin(), arr1.rend(), arr2.rbegin(), arr2.rend());
-//    std::cout << "order " << _-std::rbegin(arr1);
-
-//    int counter = 0;
-//    auto _ = std::find_if (arr1.begin(), arr1.end(), [&counter](char c)
-//    {
-//        if ((c == 'f') || (c == 'g') || (c == 'h'))
-//        {
-//            if (c == 'f')
-//            {
-//                counter = 1;
-//                return false;
-//            }
-//            if ((c == 'g') && (counter == 1))
-//            {
-//                ++counter;
-//                return false;
-//            }
-//            if ((c == 'h') && (counter == 2))
-//            {
-//                return true;
-//            } else
-//            {
-//                counter = 0;
-//                return false;
-//            }
-//        } else
-//        {
-//            return false;
-//        }
-//
-//    }
-//    );
-//    std::cout << "offset " << _- arr1.begin() << std::endl;
-
 }
 
