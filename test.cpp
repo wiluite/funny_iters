@@ -40,9 +40,10 @@ BOOST_AUTO_TEST_CASE( fill_data ) {
 
     std::array<char,10> std_array {};
     ring_buffer_sequence rbs2 (std_array);
+    BOOST_REQUIRE(rbs1 != rbs2);
     rbs2.fill_data(external_buffer, sizeof(external_buffer));
     rbs2.fill_data(external_buffer, sizeof(external_buffer));
 
-    BOOST_REQUIRE(rbs1 != rbs2);
+    BOOST_REQUIRE(rbs1 == rbs2);
 }
 

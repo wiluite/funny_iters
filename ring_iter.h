@@ -86,7 +86,8 @@ namespace funny_it
         }
         bool operator == (class_type const & other) const noexcept
         {
-            return (std::equal(begin(), end(), other.begin())) && (head() == other.head()) && (tail() == other.tail());
+            return (std::equal(begin(), end(), other.begin())) && (head() - begin() == other.head() - other.begin())
+            && (tail() - begin() == other.tail() - other.begin());
         }
 
         bool operator != (class_type const & other) const noexcept
