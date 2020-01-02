@@ -18,43 +18,71 @@ namespace funny_it
     struct ring_buffer_limits
     {
     private:
-        V (& arr_)[N];
+        V (& buf_)[N];
     public:
-        using arr_type = decltype(arr_);
-        explicit ring_buffer_limits (V (& arr)[N] ) : arr_(arr)
+        using buf_type = decltype(buf_);
+        explicit ring_buffer_limits (V (& buf)[N] ) : buf_(buf) {}
+
+        V * begin() const
         {
-           // std::cout << N << std::endl;
+            return std::begin(buf_);
         }
-        [[nodiscard]] const V * begin() const
+        V const * end() const
         {
-            return std::begin(arr_);
-        }
-        [[nodiscard]] const V * end() const
-        {
-            return std::end(arr_);
+            return std::end(buf_);
         }
     };
 
     template <class V, size_t N>
     class ring_buffer_sequence : private ring_buffer_limits<V,N>
     {
+        V * head_ = begin();
+        V * tail_ = begin();
+        V * frame_start{};
+
     public:
         using inherited_class_type = ring_buffer_limits<V,N>;
         using inherited_class_type::begin;
         using inherited_class_type::end;
-        using raw_arr_type = typename inherited_class_type::arr_type ;
+        using typename inherited_class_type::buf_type ;
 
-        explicit ring_buffer_sequence (V (& arr)[N] ) : ring_buffer_limits<V,N>(arr) {}
-        explicit ring_buffer_sequence (std::array<V, N> & arr ) : inherited_class_type (reinterpret_cast<raw_arr_type>(arr))
-        {
-//            std::cout << "this constructor \n";
-//            std::cout << (int)*begin() << std::endl;
-//            std::cout << (int)*(end()-1) << std::endl;
-        }
+        explicit ring_buffer_sequence (V (& buffer)[N]) : ring_buffer_limits<V,N>(buffer){}
+        explicit ring_buffer_sequence (std::array<V, N> & arr) : inherited_class_type(reinterpret_cast<buf_type>(arr)){}
+
         ~ring_buffer_sequence()
         {
-            static_assert(sizeof(std::array<V, N>) == sizeof(raw_arr_type));
+            static_assert(sizeof(std::array<V, N>) == sizeof(buf_type));
         }
+
+        V * head() const
+        {
+            return head_;
+        }
+
+        V * tail() const
+        {
+            return tail_;
+        }
+
+        void fill_data(V const * const external_buf, uint8_t bytes_transferred)
+        {
+            if ((head_ + bytes_transferred) > end())
+            {
+                auto const rest_1 = end() - head_;
+                std::copy (external_buf, external_buf + rest_1, head_);
+                auto const rest_2 = head_ + bytes_transferred - end();
+                std::copy (external_buf + rest_1, external_buf + rest_1 + rest_2, begin());
+            } else
+            {
+                std::copy (external_buf, external_buf + bytes_transferred, head_);
+                head_ += bytes_transferred;
+                if (head_ == end())
+                {
+                    head_ = begin();
+                }
+            }
+        }
+
     };
 
 
