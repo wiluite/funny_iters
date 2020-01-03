@@ -17,27 +17,6 @@ std::array<std::byte, sizeof...(Ts)> make_bytes(Ts && ... args) noexcept
 int main(int argc, char const * argv[] )
 {
     using namespace funny_it;
-    std::array<char, 10> a{};
-    char a2[10];
-    char a3[6] = {0x31,0x32,0x33,0x34,0x35,0x36};
-    ring_buffer_sequence rbs1 (a);
-    ring_buffer_sequence rbs2 (a2);
-    std::cout << sizeof(a2) << std::endl;
-    rbs1.fill_data(a3, sizeof(a3));
-    rbs1.fill_data(a3, sizeof(a3));
-    std::cout << *(rbs1.begin()+0) << std::endl;
-    std::cout << *(rbs1.begin()+1) << std::endl;
-    std::cout << *(rbs1.begin()+2) << std::endl;
-    std::cout << *(rbs1.begin()+3) << std::endl;
-    std::cout << *(rbs1.begin()+4) << std::endl;
-    std::cout << *(rbs1.begin()+5) << std::endl;
-    std::cout << *(rbs1.begin()+6) << std::endl;
-    std::cout << *(rbs1.begin()+7) << std::endl;
-    std::cout << *(rbs1.begin()+8) << std::endl;
-    std::cout << *(rbs1.begin()+9) << std::endl;
-//    std::cout << sizeof(a) << std::endl;
-    return 0;
-
 
     bit_sequence seq {make_bytes(0x0A, 0x0B, 0x0C)}; // 00001010  00001011  00001100 (7 bits by 1, 17 bits by 0)
 

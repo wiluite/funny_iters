@@ -33,12 +33,12 @@ namespace funny_it
         bit_iterator(bit_iterator && other) noexcept = default;
         bit_iterator &operator=(bit_iterator && other) noexcept = default;
 
-        bool operator == (bit_iterator const & other) const noexcept
+        bool operator == (class_type const & other) const noexcept
         {
             return (current_byte == other.current_byte) && (current_bit == other.current_bit);
         }
 
-        bool operator != (bit_iterator const & other) const noexcept
+        bool operator != (class_type const & other) const noexcept
         {
             return !(*this == other);
         }
