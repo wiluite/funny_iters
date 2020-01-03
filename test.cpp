@@ -8,7 +8,7 @@
 
 using namespace funny_it;
 
-BOOST_AUTO_TEST_CASE( fill_data ) {
+BOOST_AUTO_TEST_CASE( ring_iterator_sequence_test ) {
 
     char c_array[10] {};
     ring_buffer_sequence rbs1 (c_array);
@@ -47,5 +47,40 @@ BOOST_AUTO_TEST_CASE( fill_data ) {
     rbs2.fill_data(external_buffer, sizeof(external_buffer));
 
     BOOST_REQUIRE(rbs1 == rbs2);
+
+    BOOST_REQUIRE (rbs1.head() != rbs1.tail());
+    rbs1.align();
+    BOOST_REQUIRE (rbs1.head() == rbs1.tail());
+}
+
+BOOST_AUTO_TEST_CASE( ring_iterator_test )
+{
+    std::array<char,10> std_array {};
+    ring_buffer_sequence rbs (std_array);
+    BOOST_REQUIRE (rbs.head() == rbs.tail());
+    BOOST_REQUIRE (rbs.head() == rbs.buffer_begin());
+
+    char external_buffer[6] = {0x31,0x32,0x33,0x34,0x35,0x36};
+    rbs.fill_data(external_buffer, sizeof(external_buffer));
+
+    for (auto & elem : rbs)
+    {
+        std::cout << elem << std::endl;
+    }
+    BOOST_REQUIRE (rbs.head() - rbs.tail() == 6);
+
+    rbs.align();
+
+    rbs.fill_data(external_buffer, sizeof(external_buffer)); // rotation
+
+    std::cout << "---" << std::endl;
+    auto current_elem = *rbs.begin() - 1;
+    for (auto & elem : rbs)
+    {
+        BOOST_REQUIRE_EQUAL((int)elem, (int)current_elem + 1);
+        current_elem = elem;
+        std::cout << elem << std::endl;
+    }
+
 }
 

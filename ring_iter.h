@@ -21,11 +21,41 @@ namespace funny_it
 
         using class_type = ring_iterator<ValueType, N>;
         using value_type = ValueType;
-        
+
     private:
-        sequence_class & sequence_;
+        sequence_class const & sequence_;
         value_type * ptr_;
-        explicit ring_iterator(sequence_class & seq, ValueType const * const guard) : sequence_(seq), ptr_(guard){}
+        explicit ring_iterator(sequence_class const & seq, ValueType * guard) : sequence_(seq), ptr_(guard){}
+        
+    public:
+        ring_iterator(class_type const & other) = default;
+        ring_iterator &operator=( class_type const & other) = default;
+        ring_iterator(class_type && other) noexcept = default;
+        ring_iterator &operator=(class_type && other) noexcept = default;
+
+        bool operator == (class_type const & other) const noexcept
+        {
+            return (ptr_ == other.ptr_);
+        }
+
+        bool operator != (class_type const & other) const noexcept
+        {
+            return !(*this == other);
+        }
+
+        value_type & operator * () const noexcept
+        {
+            return *ptr_;
+        }
+
+        class_type & operator ++ () noexcept
+        {
+            if (++ptr_ == sequence_.buffer_end())
+            {
+                ptr_ = sequence_.buffer_begin();
+            }
+            return *this;
+        }
 
     };
 
@@ -58,8 +88,6 @@ namespace funny_it
     public:
         using class_type = ring_buffer_sequence<V,N>;
         using inherited_class_type = ring_buffer_limits<V,N>;
-//        using buffer_begin = typename inherited_class_type::begin;
-//        using buffer_end = typename inherited_class_type::end;
         using inherited_class_type::buffer_begin;
         using inherited_class_type::buffer_end;
 
@@ -68,7 +96,7 @@ namespace funny_it
         using const_iterator = ring_iterator<V, N>;
 
         explicit ring_buffer_sequence (V (& buffer)[N]) : ring_buffer_limits<V,N>(buffer){}
-        explicit ring_buffer_sequence (std::array<V, N> & arr) : inherited_class_type(reinterpret_cast<buf_type>(arr)){}
+        explicit ring_buffer_sequence (std::array<V, N> & array) : inherited_class_type(reinterpret_cast<buf_type>(array)){}
 
         ~ring_buffer_sequence()
         {
@@ -77,12 +105,12 @@ namespace funny_it
 
         const_iterator begin() const
         {
-            return const_iterator{*this, head_};
+            return const_iterator{*this, tail_};
         }
 
         const_iterator end() const
         {
-            return const_iterator{*this, tail_};
+            return const_iterator{*this, head_};
         }
 
         V * head() const
@@ -124,6 +152,11 @@ namespace funny_it
         bool operator != (class_type const & other) const noexcept
         {
             return !(*this == other);
+        }
+
+        void align()
+        {
+            tail_ = head_;
         }
 
     };
