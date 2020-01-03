@@ -90,6 +90,13 @@ namespace funny_it
             return tmp;
         }
 
+        class_type operator + (int n) const noexcept
+        {
+            class_type tmp(*this);
+            tmp += n;
+            return tmp;
+        }
+
         class_type & operator -= (int n) noexcept
         {
             while (n--)
@@ -106,15 +113,7 @@ namespace funny_it
             return ret;
         }
     };
-
-    template<typename ValueType, size_t Bytes>
-    bit_iterator<ValueType, Bytes> operator+(bit_iterator<ValueType, Bytes> const &obj, int n)
-    {
-        bit_iterator<ValueType, Bytes> tmp(obj);
-        return tmp += n;
-    }
-
-
+    
     template<size_t Bytes>
     class bit_sequence
     {

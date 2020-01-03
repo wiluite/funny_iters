@@ -13,29 +13,34 @@ namespace funny_it
     class ring_buffer_sequence;
 
     template <class ValueType, size_t N>
-    class ring_iterator: public std::iterator<std::input_iterator_tag, ValueType, ptrdiff_t, void, ValueType>
+    class ring_buffer_iterator: public std::iterator<std::input_iterator_tag, ValueType, ptrdiff_t, void, ValueType>
     {
     public:
         friend class ring_buffer_sequence<ValueType, N>;
         using sequence_class = ring_buffer_sequence<ValueType, N>;
 
-        using class_type = ring_iterator<ValueType, N>;
+        using class_type = ring_buffer_iterator<ValueType, N>;
         using value_type = ValueType;
 
     private:
-        sequence_class const & sequence_;
+        sequence_class const * sequence_;
         value_type * ptr_;
-        explicit ring_iterator(sequence_class const & seq, ValueType * guard) : sequence_(seq), ptr_(guard){}
-        
+        explicit ring_buffer_iterator(sequence_class const * seq, ValueType * guard) : sequence_(seq), ptr_(guard){}
+
     public:
-        ring_iterator(class_type const & other) = default;
-        ring_iterator &operator=( class_type const & other) = default;
-        ring_iterator(class_type && other) noexcept = default;
-        ring_iterator &operator=(class_type && other) noexcept = default;
+        ring_buffer_iterator(class_type const & other) = default;
+        ring_buffer_iterator &operator=(class_type const & other) = default;
+        ring_buffer_iterator(class_type && other) noexcept = default;
+        ring_buffer_iterator &operator=(class_type && other) noexcept = default;
 
         bool operator == (class_type const & other) const noexcept
         {
             return (ptr_ == other.ptr_);
+        }
+
+        bool operator == (value_type const * v) const noexcept
+        {
+            return ptr_ == v;
         }
 
         bool operator != (class_type const & other) const noexcept
@@ -50,14 +55,20 @@ namespace funny_it
 
         class_type & operator ++ () noexcept
         {
-            if (++ptr_ == sequence_.buffer_end())
+            if (++ptr_ == sequence_->buffer_end())
             {
-                ptr_ = sequence_.buffer_begin();
+                ptr_ = sequence_->buffer_begin();
             }
             return *this;
         }
 
     };
+
+    template <class V, size_t N>
+    bool operator == (V const * const value, ring_buffer_iterator<V,N> const & iter)
+    {
+        return iter == value;
+    }
 
     template <class V, size_t N>
     struct ring_buffer_limits
@@ -93,24 +104,22 @@ namespace funny_it
 
         using typename inherited_class_type::buf_type ;
 
-        using const_iterator = ring_iterator<V, N>;
+        using const_iterator = ring_buffer_iterator<V, N>;
 
         explicit ring_buffer_sequence (V (& buffer)[N]) : ring_buffer_limits<V,N>(buffer){}
-        explicit ring_buffer_sequence (std::array<V, N> & array) : inherited_class_type(reinterpret_cast<buf_type>(array)){}
-
-        ~ring_buffer_sequence()
+        explicit ring_buffer_sequence (std::array<V, N> & array) : inherited_class_type(reinterpret_cast<buf_type>(array))
         {
-            static_assert(sizeof(std::array<V, N>) == sizeof(buf_type));
+            static_assert (sizeof array == sizeof(buf_type));
         }
 
         const_iterator begin() const
         {
-            return const_iterator{*this, tail_};
+            return const_iterator{this, tail_};
         }
 
         const_iterator end() const
         {
-            return const_iterator{*this, head_};
+            return const_iterator{this, head_};
         }
 
         V * head() const

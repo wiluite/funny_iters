@@ -63,15 +63,15 @@ BOOST_AUTO_TEST_CASE( ring_iterator_test )
     char external_buffer[6] = {0x31,0x32,0x33,0x34,0x35,0x36};
     rbs.fill_data(external_buffer, sizeof(external_buffer));
 
-    for (auto & elem : rbs)
+    for (auto  & elem : rbs)
     {
         std::cout << elem << std::endl;
     }
     BOOST_REQUIRE (rbs.head() - rbs.tail() == 6);
 
+    // align tail with head, and fill data with rotation
     rbs.align();
-
-    rbs.fill_data(external_buffer, sizeof(external_buffer)); // rotation
+    rbs.fill_data(external_buffer, sizeof(external_buffer));
 
     std::cout << "---" << std::endl;
     auto current_elem = *rbs.begin() - 1;
@@ -82,5 +82,15 @@ BOOST_AUTO_TEST_CASE( ring_iterator_test )
         std::cout << elem << std::endl;
     }
 
+    auto const _  = std::find (rbs.begin(), rbs.end(), '6');
+    BOOST_REQUIRE(_ != std::end(rbs));
+    BOOST_REQUIRE(*_ == '6');
+
+    std::array<char, 3> sub_seq {'4', '5', '6'};
+    auto const __ = std::search (rbs.begin(), rbs.end(), sub_seq.begin(), sub_seq.end());
+    BOOST_REQUIRE(__ != std::end(rbs));
+    BOOST_REQUIRE(*__ == '4');
+    BOOST_REQUIRE(__ == rbs.buffer_begin() + 9);
+    BOOST_REQUIRE(rbs.buffer_begin() + 9 == __);
 }
 
