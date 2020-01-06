@@ -103,11 +103,7 @@ BOOST_AUTO_TEST_CASE( ring_iterator_align_by_iterator_test )
     ring_buffer_sequence rbs (std_array);
     char external_buffer[10]{};
     sprintf (external_buffer, "%s", "foo#test");
-    BOOST_REQUIRE (strlen(external_buffer) == 8);
     rbs.fill_data(external_buffer, strlen(external_buffer));
-    BOOST_REQUIRE_EQUAL(rbs.head(), rbs.buffer_begin()+9);
-    auto const _  = std::find (rbs.begin(), rbs.end(), '6');
-    BOOST_REQUIRE (_ == std::end(rbs));
     auto const __  = std::find (rbs.begin(), rbs.end(), '#');
     BOOST_REQUIRE (__ != std::end(rbs));
     BOOST_REQUIRE (*__ == '#');
