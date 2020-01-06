@@ -9,7 +9,7 @@ namespace funny_it
     class bit_sequence;
 
     template<typename ValueType, size_t Bytes>
-    class bit_iterator : public std::iterator<std::forward_iterator_tag, ValueType, ptrdiff_t, void, ValueType> {
+    class bit_iterator : public std::iterator<std::bidirectional_iterator_tag, ValueType, ptrdiff_t, void, ValueType> {
     public:
         friend class bit_sequence<Bytes>;
 
@@ -124,7 +124,7 @@ namespace funny_it
 
         using const_iterator = bit_iterator<std::byte const, Bytes>;
 
-        [[nodiscard]] const_iterator begin() const
+        const_iterator begin() const
         {
             return const_iterator{std::begin(arr_)};
         }

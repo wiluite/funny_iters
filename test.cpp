@@ -14,6 +14,7 @@ BOOST_AUTO_TEST_CASE( ring_iterator_sequence_test ) {
     ring_buffer_sequence rbs1 (c_array);
     BOOST_REQUIRE (rbs1.head() == rbs1.tail());
     BOOST_REQUIRE (rbs1.head() == rbs1.buffer_begin());
+    BOOST_REQUIRE (rbs1.head() == std::end(rbs1));
 
     char external_buffer[6] = {0x31,0x32,0x33,0x34,0x35,0x36};
 
@@ -104,12 +105,14 @@ BOOST_AUTO_TEST_CASE( ring_iterator_align_by_iterator_test )
     char external_buffer[10]{};
     sprintf (external_buffer, "%s", "foo#test");
     rbs.fill_data(external_buffer, strlen(external_buffer));
-    auto const __  = std::find (rbs.begin(), rbs.end(), '#');
+    auto __  = std::find (rbs.begin(), rbs.end(), '#');
     BOOST_REQUIRE (__ != std::end(rbs));
     BOOST_REQUIRE (*__ == '#');
     BOOST_REQUIRE_NO_THROW(rbs.align(__));
     BOOST_REQUIRE (rbs.tail() == rbs.buffer_begin()+ 4);
 
     // new search find nothing.
-    BOOST_REQUIRE (std::find (rbs.begin(), rbs.end(), '#') == std::end(rbs));
+    BOOST_REQUIRE ((__ = std::find (rbs.begin(), rbs.end(), '#')) == std::end(rbs));
+    // and you should not pass the not-succeeding iterator to
+    BOOST_REQUIRE_THROW(rbs.align(__), logic_exception);
 }
