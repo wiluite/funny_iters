@@ -85,7 +85,7 @@ BOOST_AUTO_TEST_CASE( ring_iterator_standard_algorithms_test )
 
     auto const _  = std::find (rbs.begin(), rbs.end(), '6');
     static_assert (std::is_same<decltype (_), ring_buffer_iterator<char, 10> const>::value);
-    //static_assert (std::is_same<decltype ())
+    static_assert (std::is_same<decltype (_), decltype(rbs)::const_iterator const>::value);
     BOOST_REQUIRE(_ != std::end(rbs));
     BOOST_REQUIRE(*_ == '6');
 
@@ -97,3 +97,23 @@ BOOST_AUTO_TEST_CASE( ring_iterator_standard_algorithms_test )
     BOOST_REQUIRE(rbs.buffer_begin() + 9 == __);
 }
 
+BOOST_AUTO_TEST_CASE( ring_iterator_align_by_iterator_test )
+{
+    std::array<char,10> std_array {};
+    ring_buffer_sequence rbs (std_array);
+    char external_buffer[10]{};
+    sprintf (external_buffer, "%s", "foo#test");
+    BOOST_REQUIRE (strlen(external_buffer) == 8);
+    rbs.fill_data(external_buffer, strlen(external_buffer));
+    BOOST_REQUIRE_EQUAL(rbs.head(), rbs.buffer_begin()+9);
+    auto const _  = std::find (rbs.begin(), rbs.end(), '6');
+    BOOST_REQUIRE (_ == std::end(rbs));
+    auto const __  = std::find (rbs.begin(), rbs.end(), '#');
+    BOOST_REQUIRE (__ != std::end(rbs));
+    BOOST_REQUIRE (*__ == '#');
+    BOOST_REQUIRE_NO_THROW(rbs.align(__));
+    BOOST_REQUIRE (rbs.tail() == rbs.buffer_begin()+ 4);
+
+    // new search find nothing.
+    BOOST_REQUIRE (std::find (rbs.begin(), rbs.end(), '#') == std::end(rbs));
+}

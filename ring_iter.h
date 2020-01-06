@@ -61,7 +61,6 @@ namespace funny_it
             }
             return *this;
         }
-
     };
 
     template <class V, size_t N>
@@ -87,6 +86,11 @@ namespace funny_it
         {
             return std::end(buf_);
         }
+    };
+
+    struct logic_exception : public std::exception
+    {
+
     };
 
     template <class V, size_t N>
@@ -167,11 +171,19 @@ namespace funny_it
             tail_ = head_;
         }
 
-        void align (const_iterator it) noexcept
+        /**
+         * Sets the tail value to the position following the position described by the passed iterator
+         * @param it iterator (mainly returned by a search algorithm)
+         */
+        void align (const_iterator it)
         {
             tail_ = &(*it);
+            if (tail_ == head_)
+            {
+                throw logic_exception();
+            }
+            tail_ = &(*(++it));
         }
-
     };
 }
 
