@@ -65,7 +65,7 @@ namespace funny_it
     };
 
     template <class V, size_t N>
-    bool operator == (V const * const value, ring_buffer_iterator<V,N> const & iter)
+    bool operator == (V const * const value, ring_buffer_iterator<V,N> const & iter) noexcept
     {
         return iter == value;
     }
@@ -94,7 +94,6 @@ namespace funny_it
     {
         V * head_ = buffer_begin();
         V * tail_ = buffer_begin();
-        V * frame_start{};
 
     public:
         using class_type = ring_buffer_sequence<V,N>;
@@ -163,9 +162,14 @@ namespace funny_it
             return !(*this == other);
         }
 
-        void align()
+        void align() noexcept
         {
             tail_ = head_;
+        }
+
+        void align (const_iterator it) noexcept
+        {
+            tail_ = &(*it);
         }
 
     };

@@ -113,7 +113,7 @@ namespace funny_it
             return ret;
         }
     };
-    
+
     template<size_t Bytes>
     class bit_sequence
     {

@@ -12,6 +12,9 @@ BOOST_AUTO_TEST_CASE( ring_iterator_sequence_test ) {
 
     char c_array[10] {};
     ring_buffer_sequence rbs1 (c_array);
+    BOOST_REQUIRE (rbs1.head() == rbs1.tail());
+    BOOST_REQUIRE (rbs1.head() == rbs1.buffer_begin());
+
     char external_buffer[6] = {0x31,0x32,0x33,0x34,0x35,0x36};
 
     rbs1.fill_data(external_buffer, sizeof(external_buffer));
@@ -25,6 +28,7 @@ BOOST_AUTO_TEST_CASE( ring_iterator_sequence_test ) {
     BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+7), 0);
     BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+8), 0);
     BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+9), 0);
+    BOOST_REQUIRE (rbs1.head() - rbs1.tail() == 6);
 
     rbs1.fill_data(external_buffer, sizeof(external_buffer)); // rotation
     BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+0), 0x35);
@@ -37,7 +41,6 @@ BOOST_AUTO_TEST_CASE( ring_iterator_sequence_test ) {
     BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+7), 0x32);
     BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+8), 0x33);
     BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+9), 0x34);
-
     BOOST_REQUIRE (rbs1.head() == rbs1.buffer_begin()+2 );
 
     std::array<char,10> std_array {};
@@ -53,28 +56,26 @@ BOOST_AUTO_TEST_CASE( ring_iterator_sequence_test ) {
     BOOST_REQUIRE (rbs1.head() == rbs1.tail());
 }
 
-BOOST_AUTO_TEST_CASE( ring_iterator_test )
+BOOST_AUTO_TEST_CASE( ring_iterator_standard_algorithms_test )
 {
     std::array<char,10> std_array {};
     ring_buffer_sequence rbs (std_array);
-    BOOST_REQUIRE (rbs.head() == rbs.tail());
-    BOOST_REQUIRE (rbs.head() == rbs.buffer_begin());
-
     char external_buffer[6] = {0x31,0x32,0x33,0x34,0x35,0x36};
     rbs.fill_data(external_buffer, sizeof(external_buffer));
 
+    // iteration without rotation
     for (auto  & elem : rbs)
     {
         std::cout << elem << std::endl;
     }
-    BOOST_REQUIRE (rbs.head() - rbs.tail() == 6);
 
     // align tail with head, and fill data with rotation
     rbs.align();
     rbs.fill_data(external_buffer, sizeof(external_buffer));
 
     std::cout << "---" << std::endl;
-    auto current_elem = *rbs.begin() - 1;
+    // iteration with rotation (data is still consequent incremental)
+    auto current_elem = (*rbs.begin()) - 1;
     for (auto & elem : rbs)
     {
         BOOST_REQUIRE_EQUAL((int)elem, (int)current_elem + 1);
@@ -83,6 +84,8 @@ BOOST_AUTO_TEST_CASE( ring_iterator_test )
     }
 
     auto const _  = std::find (rbs.begin(), rbs.end(), '6');
+    static_assert (std::is_same<decltype (_), ring_buffer_iterator<char, 10> const>::value);
+    //static_assert (std::is_same<decltype ())
     BOOST_REQUIRE(_ != std::end(rbs));
     BOOST_REQUIRE(*_ == '6');
 
