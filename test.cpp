@@ -5,6 +5,7 @@
 #define BOOST_TEST_MODULE boost_test_module_
 #include <boost/test/unit_test.hpp> // UTF ??
 #include "ring_iter.h"
+#include <iostream>
 
 using namespace funny_it;
 
@@ -15,6 +16,7 @@ BOOST_AUTO_TEST_CASE( ring_iterator_sequence_test ) {
     BOOST_REQUIRE (rbs1.head() == rbs1.tail());
     BOOST_REQUIRE (rbs1.head() == rbs1.buffer_begin());
     BOOST_REQUIRE (rbs1.head() == std::end(rbs1));
+    BOOST_REQUIRE (rbs1.buffer_size() == 10);
 
     char external_buffer[6] = {0x31,0x32,0x33,0x34,0x35,0x36};
 
@@ -55,6 +57,15 @@ BOOST_AUTO_TEST_CASE( ring_iterator_sequence_test ) {
     BOOST_REQUIRE (rbs1.head() != rbs1.tail());
     rbs1.align();
     BOOST_REQUIRE (rbs1.head() == rbs1.tail());
+
+    ring_buffer_sequence rbs3 (std_array);
+    rbs3.fill_data(external_buffer, sizeof(external_buffer));
+    BOOST_REQUIRE_EQUAL (rbs3.size(), 6);
+    BOOST_REQUIRE (rbs3.head() > rbs3.tail());
+    rbs3.align();
+    rbs3.fill_data(external_buffer, sizeof(external_buffer));
+    BOOST_REQUIRE (rbs3.head() < rbs3.tail());
+    BOOST_REQUIRE_EQUAL (rbs3.size(), 6);
 }
 
 BOOST_AUTO_TEST_CASE( ring_iterator_standard_algorithms_test )
@@ -91,11 +102,18 @@ BOOST_AUTO_TEST_CASE( ring_iterator_standard_algorithms_test )
     BOOST_REQUIRE(*_ == '6');
 
     std::array<char, 3> sub_seq {'4', '5', '6'};
-    auto const __ = std::search (rbs.begin(), rbs.end(), sub_seq.begin(), sub_seq.end());
+    auto __ = std::search (rbs.begin(), rbs.end(), sub_seq.begin(), sub_seq.end());
     BOOST_REQUIRE(__ != std::end(rbs));
     BOOST_REQUIRE(*__ == '4');
     BOOST_REQUIRE(__ == rbs.buffer_begin() + 9);
     BOOST_REQUIRE(rbs.buffer_begin() + 9 == __);
+
+    ++__;
+    auto ___ = __;
+    static_assert(std::is_same<decltype(__), typename std::decay<decltype(___)>::type>::value);
+    std::array<char, 2> sub_seq2 {'5', '6'};
+    BOOST_REQUIRE ((___ = std::search (___, rbs.end(), sub_seq2.begin(), sub_seq2.end())) != std::end(rbs));
+    std::cout << *___ << std::endl;
 }
 
 BOOST_AUTO_TEST_CASE( ring_iterator_align_by_iterator_test )
@@ -115,4 +133,34 @@ BOOST_AUTO_TEST_CASE( ring_iterator_align_by_iterator_test )
     BOOST_REQUIRE ((__ = std::find (rbs.begin(), rbs.end(), '#')) == std::end(rbs));
     // and you should not pass the not-succeeding iterator to
     BOOST_REQUIRE_THROW(rbs.align(__), logic_exception);
+}
+
+BOOST_AUTO_TEST_CASE( ring_iterator_distance_test)
+{
+    std::array<char,10> std_array {};
+    ring_buffer_sequence rbs (std_array);
+    char external_buffer[5]{};
+    rbs.fill_data(external_buffer, sizeof(external_buffer));
+
+    BOOST_REQUIRE_NO_THROW(rbs.distance(++rbs.begin(), ++++rbs.begin()));
+    BOOST_REQUIRE_EQUAL(rbs.distance(++rbs.begin(),++++rbs.begin()), 1);
+    BOOST_REQUIRE_THROW(rbs.distance(++++rbs.begin(), ++rbs.begin()), iter_mixture);
+
+    typename decltype(rbs)::const_iterator cit1 = rbs.begin();
+    typename decltype(rbs)::const_iterator cit2 = rbs.begin();
+
+    rbs.align(rbs.begin()); //rbs.tail() == rbs.buffer_begin()+ 1
+
+    BOOST_REQUIRE_THROW(rbs.distance(cit1,cit2), out_of_bounds);
+    ++cit1;
+    BOOST_REQUIRE_THROW(rbs.distance(cit1,cit2), out_of_bounds);
+    ++cit2;
+    BOOST_REQUIRE_NO_THROW(rbs.distance(cit1,cit2));
+    ++++++cit1, ++++++cit2;
+    BOOST_REQUIRE_NO_THROW(rbs.distance(cit1,cit2));
+    ++cit2;
+    BOOST_REQUIRE_THROW(rbs.distance(cit1,cit2), out_of_bounds);
+    cit2 = cit1;
+    ++cit1;
+    BOOST_REQUIRE_THROW(rbs.distance(cit1,cit2), out_of_bounds);
 }

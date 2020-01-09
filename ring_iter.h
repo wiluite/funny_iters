@@ -6,6 +6,7 @@
 #include <iterator>
 #include <array>
 #include <algorithm>
+#include <exception>
 
 namespace funny_it
 {
@@ -74,21 +75,27 @@ namespace funny_it
     {
     private:
         V (& buf_)[N];
-    public:
+    protected:
         using buf_type = decltype(buf_);
         explicit ring_buffer_limits (V (& buf)[N] ) : buf_(buf) {}
 
-        constexpr V * buffer_begin() const
+        constexpr V * buffer_begin() const noexcept
         {
             return std::begin(buf_);
         }
-        constexpr V * buffer_end() const
+        constexpr V * buffer_end() const noexcept
         {
             return std::end(buf_);
+        }
+        [[nodiscard]] constexpr decltype(N) buffer_size() const noexcept
+        {
+            return N;
         }
     };
 
     struct logic_exception : public std::exception {};
+    struct out_of_bounds : public std::exception {};
+    struct iter_mixture : public std::exception {};
 
     template <class V, size_t N>
     class ring_buffer_sequence : private ring_buffer_limits<V,N>
@@ -101,6 +108,7 @@ namespace funny_it
         using inherited_class_type = ring_buffer_limits<V,N>;
         using inherited_class_type::buffer_begin;
         using inherited_class_type::buffer_end;
+        using inherited_class_type::buffer_size;
 
         using typename inherited_class_type::buf_type ;
 
@@ -181,6 +189,53 @@ namespace funny_it
             }
             tail_ = &(*(++it));
         }
+
+        // several helpers for future
+
+        constexpr decltype(N) size() const noexcept
+        {
+            if (head_ >= tail_)
+            {
+                return head_ - tail_;
+            } else
+            {
+                return (buffer_end() - tail_) + (head_ - buffer_begin());
+            }
+        }
+
+
+        template<typename Iter>
+        typename std::iterator_traits<Iter>::difference_type distance(Iter it1, Iter it2) const
+        {
+            static_assert(std::is_same<Iter, const_iterator>::value);
+            static_assert(std::numeric_limits<typename std::iterator_traits<const_iterator>::difference_type>::is_signed);
+            //static_assert(std::is_same<typename std::iterator_traits<const_iterator>::difference_type, long long>::value);
+            if (head_ >= tail_)
+            {
+                if  ((&(*it1) < tail_) || (&(*it1) >= head_) || (&(*it2) < tail_) || (&(*it2) >= head_))
+                {
+                    throw out_of_bounds();
+                }
+            } else
+            {
+                if (((&(*it1) < tail_) && (&(*it1) >= head_)) || ((&(*it2) < tail_) && (&(*it2) >= head_)))
+                {
+                    throw out_of_bounds();
+                }
+            }
+
+            typename std::iterator_traits<Iter>::difference_type diff = 0;
+            while (it1 != it2)
+            {
+                if (&*++it1 == head_)
+                {
+                    throw iter_mixture();
+                }
+                ++diff;
+            }
+            return diff;
+        }
+
     };
 }
 
