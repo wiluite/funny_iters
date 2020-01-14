@@ -190,6 +190,15 @@ namespace funny_it
             tail_ = &(*(++it));
         }
 
+        constexpr void strict_align (const_iterator it)
+        {
+            if (&(*it) == head_)
+            {
+                throw logic_exception();
+            }
+            tail_ = &(*(it));
+        }
+
         // several helpers for future
 
         constexpr decltype(N) size() const noexcept
@@ -209,7 +218,7 @@ namespace funny_it
         {
             static_assert(std::is_same<Iter, const_iterator>::value);
             static_assert(std::numeric_limits<typename std::iterator_traits<const_iterator>::difference_type>::is_signed);
-            //static_assert(std::is_same<typename std::iterator_traits<const_iterator>::difference_type, long long>::value);
+
             if (head_ >= tail_)
             {
                 if  ((&(*it1) < tail_) || (&(*it1) >= head_) || (&(*it2) < tail_) || (&(*it2) >= head_))
@@ -227,7 +236,7 @@ namespace funny_it
             typename std::iterator_traits<Iter>::difference_type diff = 0;
             while (it1 != it2)
             {
-                if (&*++it1 == head_)
+                if (&(*(++it1)) == head_)
                 {
                     throw iter_mixture();
                 }
