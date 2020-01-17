@@ -26,35 +26,47 @@ namespace funny_it
     private:
         sequence_class const * sequence_;
         value_type * ptr_;
-        explicit ring_buffer_iterator(sequence_class const * seq, ValueType * guard) : sequence_(seq), ptr_(guard){}
+        unsigned stage_;
+
+        explicit ring_buffer_iterator(sequence_class const * seq, ValueType * guard) : sequence_(seq), ptr_(guard), stage_(sequence_->stage_)
+        {
+        }
 
     public:
-        ring_buffer_iterator(class_type const & other) = default;
-        ring_buffer_iterator &operator=(class_type const & other) = default;
-        ring_buffer_iterator(class_type && other) noexcept = default;
-        ring_buffer_iterator &operator=(class_type && other) noexcept = default;
+        ring_buffer_iterator (class_type const & other) = default;
+        ring_buffer_iterator &operator =(class_type const & other)
+        {
+            if (this != &other)
+            {
+                ptr_ = other.ptr_;
+                stage_ = other.stage_;
+            }
+            return *this;
+        }
+        ring_buffer_iterator (class_type && other) noexcept = default;
+        ring_buffer_iterator &operator =(class_type && other) noexcept = default;
 
-        constexpr bool operator == (class_type const & other) const noexcept
+        constexpr bool operator ==(class_type const & other) const noexcept
         {
             return (ptr_ == other.ptr_);
         }
 
-        constexpr bool operator == (value_type const * v) const noexcept
+        constexpr bool operator ==(value_type const * v) const noexcept
         {
             return ptr_ == v;
         }
 
-        constexpr bool operator != (class_type const & other) const noexcept
+        constexpr bool operator !=(class_type const & other) const noexcept
         {
             return !(*this == other);
         }
 
-        constexpr value_type & operator * () const noexcept
+        constexpr value_type & operator *() const noexcept
         {
             return *ptr_;
         }
 
-        constexpr class_type & operator ++ () noexcept
+        constexpr class_type & operator ++() noexcept
         {
             if (++ptr_ == sequence_->buffer_end())
             {
@@ -96,12 +108,35 @@ namespace funny_it
     struct logic_exception : public std::exception {};
     struct out_of_bounds : public std::exception {};
     struct iter_mixture : public std::exception {};
+    struct outdated_iterator : public std::exception {};
 
     template <class V, size_t N>
     class ring_buffer_sequence : private ring_buffer_limits<V,N>
     {
         V * head_ = buffer_begin();
         V * tail_ = buffer_begin();
+        unsigned stage_ = 0;
+
+        template<typename Iter>
+        bool is_iter_valid(Iter it) const noexcept
+        {
+            static_assert(std::is_same<Iter, const_iterator>::value);
+            if (head_ >= tail_)
+            {
+                if (&(*it) < tail_)
+                    return false;
+                return &(*it) < head_;
+            } else
+            {
+                return !((&(*it) < tail_) && (&(*it) >= head_));
+            }
+        }
+
+        template<typename Iter>
+        bool is_iter_up_to_date(Iter it) const noexcept
+        {
+            return it.stage_ == (*this).stage_;
+        }
 
     public:
         using class_type = ring_buffer_sequence<V,N>;
@@ -113,6 +148,7 @@ namespace funny_it
         using typename inherited_class_type::buf_type ;
 
         using const_iterator = ring_buffer_iterator<V, N>;
+        friend const_iterator;
 
         explicit constexpr ring_buffer_sequence (V (& buffer)[N]) : ring_buffer_limits<V,N>(buffer){}
         explicit constexpr ring_buffer_sequence (std::array<V, N> & array) : inherited_class_type(reinterpret_cast<buf_type>(array))
@@ -120,14 +156,25 @@ namespace funny_it
             static_assert (sizeof array == sizeof(buf_type));
         }
 
+        void reset(const_iterator tail_iter, const_iterator head_iter)
+        {
+            assert (tail_iter == *&tail_iter);
+            if ((&*tail_iter != tail_) || (&*head_iter != head_))
+            {
+                tail_ = &*tail_iter;
+                head_ = &*head_iter;
+                ++stage_;
+            }
+        }
+
         constexpr const_iterator begin() const noexcept
         {
-            return const_iterator{this, tail_};
+            return const_iterator {this, tail_};
         }
 
         constexpr const_iterator end() const noexcept
         {
-            return const_iterator{this, head_};
+            return const_iterator {this, head_};
         }
 
         constexpr V * head() const noexcept
@@ -160,14 +207,14 @@ namespace funny_it
             }
         }
 
-        constexpr bool operator == (class_type const & other) const noexcept
+        constexpr bool operator ==(class_type const & other) const noexcept
         {
             return (std::equal(buffer_begin(), buffer_end(), other.buffer_begin()))
                    && (head() - buffer_begin() == other.head() - other.buffer_begin())
                    && (tail() - buffer_begin() == other.tail() - other.buffer_begin());
         }
 
-        constexpr bool operator != (class_type const & other) const noexcept
+        constexpr bool operator !=(class_type const & other) const noexcept
         {
             return !(*this == other);
         }
@@ -212,26 +259,18 @@ namespace funny_it
             }
         }
 
-
         template<typename Iter>
         typename std::iterator_traits<Iter>::difference_type distance(Iter it1, Iter it2) const
         {
             static_assert(std::is_same<Iter, const_iterator>::value);
             static_assert(std::numeric_limits<typename std::iterator_traits<const_iterator>::difference_type>::is_signed);
-
-            if (head_ >= tail_)
+            if ((!is_iter_up_to_date(it1)) || (!is_iter_up_to_date(it2)))
             {
-                if  ((&(*it1) < tail_) || (&(*it1) >= head_) || (&(*it2) < tail_) || (&(*it2) >= head_))
-                {
-                    throw out_of_bounds();
-                }
-            } else
-            {
-                if (((&(*it1) < tail_) && (&(*it1) >= head_)) || ((&(*it2) < tail_) && (&(*it2) >= head_)))
-                {
-                    throw out_of_bounds();
-                }
+                throw outdated_iterator();
             }
+
+            if ((!is_iter_valid(it1)) || (!is_iter_valid(it2)))
+                throw out_of_bounds();
 
             typename std::iterator_traits<Iter>::difference_type diff = 0;
             while (it1 != it2)
@@ -244,7 +283,6 @@ namespace funny_it
             }
             return diff;
         }
-
     };
 }
 

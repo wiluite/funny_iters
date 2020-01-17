@@ -164,3 +164,23 @@ BOOST_AUTO_TEST_CASE( ring_iterator_distance_test)
     ++cit1;
     BOOST_REQUIRE_THROW(rbs.distance(cit1,cit2), out_of_bounds);
 }
+
+BOOST_AUTO_TEST_CASE( ring_iterator_reset_test )
+{
+    std::array<char,10> std_array {};
+    ring_buffer_sequence rbs (std_array);
+    char external_buffer[5]{};
+    rbs.fill_data(external_buffer, sizeof(external_buffer));
+
+    auto rbs_begin = rbs.begin();
+    auto rbs_end = rbs.begin();
+    ++rbs_begin;
+    ++++rbs_end;
+    auto new_rbs_begin = rbs_begin;
+
+    BOOST_REQUIRE_NO_THROW(rbs.distance(rbs_begin, rbs_end));
+    rbs.reset(rbs.begin(), rbs.end());
+    BOOST_REQUIRE_NO_THROW(rbs.distance(rbs_begin, rbs_end));
+    rbs.reset(new_rbs_begin, rbs.end());
+    BOOST_REQUIRE_THROW(rbs.distance(rbs_begin, rbs_end), outdated_iterator);
+}
