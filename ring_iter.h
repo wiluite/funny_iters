@@ -10,12 +10,85 @@
 
 namespace funny_it
 {
+    /**
+     * \brief Outdated iterator exception
+     */
+    template <class It>
+    class outdated_iterator : public std::exception {
+        It it_;
+    public:
+        explicit outdated_iterator (It it) : it_(move(it)) {}
+        It get_iter() const
+        {
+            return it_;
+        }
+    };
+
+    /*
+     * Iterator belongs to the sequence that spawned it recently through begin(), end() and the sequence was not reset().
+     */
+    template<typename Iter>
+    bool is_iter_up_to_date(Iter it) noexcept
+    {
+        return it.up_to_date_flag == it.sequence_->up_to_date_flag;
+    }
+
+    /*
+     * Throws if an iterator does not belong to the sequence that spawned it
+     */
+    template<typename Iter>
+    void throw_if_iter_outdated(Iter const & it)
+    {
+        if (!is_iter_up_to_date(it))
+        {
+            throw outdated_iterator<Iter>(it);
+        }
+    }
+
+    /*
+     * Iterator is within the range [tail-head)
+     */
+    template<typename Iter>
+    static bool is_iter_valid(Iter const & it) noexcept
+    {
+        if (it.sequence_->head_ >= it.sequence_->tail_)
+        {
+            if (it.ptr_ < it.sequence_->tail_)
+                return false;
+            return it.ptr_ < it.sequence_->head_;
+        } else
+        {
+            return !((it.ptr_ < it.sequence_->tail_) && (it.ptr_ >= it.sequence_->head_));
+        }
+    }
+
+    struct out_of_bounds : public std::exception {};
+
+    /*
+     * Throws if an iterator is out of the range [tail-head)
+     */
+    template<typename Iter>
+    void throw_if_iter_invalid(Iter const & it)
+    {
+        if (!is_iter_valid(it))
+        {
+            throw out_of_bounds();
+        }
+    }
+
     template<class, size_t N>
     class ring_buffer_sequence;
 
     template <class ValueType, size_t N>
     class ring_buffer_iterator: public std::iterator<std::input_iterator_tag, ValueType, ptrdiff_t, void, ValueType>
     {
+        template<typename Iter>
+        friend bool is_iter_up_to_date(Iter it) noexcept;
+        template<typename Iter>
+        friend bool is_iter_valid(Iter const & it) noexcept;
+        template<typename Iter>
+        friend void throw_if_iter_invalid(Iter const & it);
+
     public:
         friend class ring_buffer_sequence<ValueType, N>;
         using sequence_class = ring_buffer_sequence<ValueType, N>;
@@ -26,9 +99,9 @@ namespace funny_it
     private:
         sequence_class const * sequence_;
         value_type * ptr_;
-        unsigned stage_;
+        unsigned up_to_date_flag;
 
-        explicit ring_buffer_iterator(sequence_class const * seq, ValueType * guard) : sequence_(seq), ptr_(guard), stage_(sequence_->stage_)
+        explicit ring_buffer_iterator(sequence_class const * seq, ValueType * guard) : sequence_(seq), ptr_(guard), up_to_date_flag(sequence_->up_to_date_flag)
         {
         }
 
@@ -39,7 +112,7 @@ namespace funny_it
             if (this != &other)
             {
                 ptr_ = other.ptr_;
-                stage_ = other.stage_;
+                up_to_date_flag = other.up_to_date_flag;
             }
             return *this;
         }
@@ -48,7 +121,7 @@ namespace funny_it
 
         constexpr bool operator ==(class_type const & other) const noexcept
         {
-            return (ptr_ == other.ptr_);
+            return (ptr_ == other.ptr_) && (sequence_ == other.sequence_) && (up_to_date_flag == other.up_to_date_flag);
         }
 
         constexpr bool operator ==(value_type const * v) const noexcept
@@ -61,13 +134,15 @@ namespace funny_it
             return !(*this == other);
         }
 
-        constexpr value_type & operator *() const noexcept
+        constexpr value_type & operator *() const
         {
+            throw_if_iter_outdated(*this);
             return *ptr_;
         }
 
         constexpr class_type & operator ++() noexcept
         {
+            throw_if_iter_outdated(*this);
             if (++ptr_ == sequence_->buffer_end())
             {
                 ptr_ = sequence_->buffer_begin();
@@ -106,37 +181,21 @@ namespace funny_it
     };
 
     struct logic_exception : public std::exception {};
-    struct out_of_bounds : public std::exception {};
     struct iter_mixture : public std::exception {};
-    struct outdated_iterator : public std::exception {};
 
     template <class V, size_t N>
     class ring_buffer_sequence : private ring_buffer_limits<V,N>
     {
+        template<typename Iter>
+        friend bool is_iter_up_to_date(Iter it) noexcept;
+        template<typename Iter>
+        friend bool is_iter_valid(Iter const & it) noexcept;
+        template<typename Iter>
+        friend void throw_if_iter_invalid(Iter const & it);
+
         V * head_ = buffer_begin();
         V * tail_ = buffer_begin();
-        unsigned stage_ = 0;
-
-        template<typename Iter>
-        bool is_iter_valid(Iter it) const noexcept
-        {
-            static_assert(std::is_same<Iter, const_iterator>::value);
-            if (head_ >= tail_)
-            {
-                if (&(*it) < tail_)
-                    return false;
-                return &(*it) < head_;
-            } else
-            {
-                return !((&(*it) < tail_) && (&(*it) >= head_));
-            }
-        }
-
-        template<typename Iter>
-        bool is_iter_up_to_date(Iter it) const noexcept
-        {
-            return it.stage_ == (*this).stage_;
-        }
+        unsigned up_to_date_flag = 0;
 
     public:
         using class_type = ring_buffer_sequence<V,N>;
@@ -163,7 +222,7 @@ namespace funny_it
             {
                 tail_ = &*tail_iter;
                 head_ = &*head_iter;
-                ++stage_;
+                ++up_to_date_flag;
             }
         }
 
@@ -246,8 +305,6 @@ namespace funny_it
             tail_ = &(*(it));
         }
 
-        // several helpers for future
-
         constexpr decltype(N) size() const noexcept
         {
             if (head_ >= tail_)
@@ -260,22 +317,20 @@ namespace funny_it
         }
 
         template<typename Iter>
-        typename std::iterator_traits<Iter>::difference_type distance(Iter it1, Iter it2) const
+        typename std::iterator_traits<Iter>::difference_type distance(Iter it1, Iter it2)
         {
             static_assert(std::is_same<Iter, const_iterator>::value);
             static_assert(std::numeric_limits<typename std::iterator_traits<const_iterator>::difference_type>::is_signed);
-            if ((!is_iter_up_to_date(it1)) || (!is_iter_up_to_date(it2)))
-            {
-                throw outdated_iterator();
-            }
 
-            if ((!is_iter_valid(it1)) || (!is_iter_valid(it2)))
-                throw out_of_bounds();
+            throw_if_iter_outdated(it1);
+            throw_if_iter_outdated(it2);
+            throw_if_iter_invalid(it1);
+            throw_if_iter_invalid(it2);
 
             typename std::iterator_traits<Iter>::difference_type diff = 0;
             while (it1 != it2)
             {
-                if (&(*(++it1)) == head_)
+                if (&*++it1 == head_)
                 {
                     throw iter_mixture();
                 }
@@ -284,5 +339,6 @@ namespace funny_it
             return diff;
         }
     };
+
 }
 

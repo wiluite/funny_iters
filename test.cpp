@@ -165,6 +165,13 @@ BOOST_AUTO_TEST_CASE( ring_iterator_distance_test)
     BOOST_REQUIRE_THROW(rbs.distance(cit1,cit2), out_of_bounds);
 }
 
+using type1 = funny_it::ring_buffer_iterator<char, 10>;
+bool exception_insufficient_data (outdated_iterator<type1> const & e)
+{
+    //std::cout << (int)*e.get_iter() << std::endl;
+    return true;
+}
+
 BOOST_AUTO_TEST_CASE( ring_iterator_reset_test )
 {
     std::array<char,10> std_array {};
@@ -178,9 +185,8 @@ BOOST_AUTO_TEST_CASE( ring_iterator_reset_test )
     ++++rbs_end;
     auto new_rbs_begin = rbs_begin;
 
-    BOOST_REQUIRE_NO_THROW(rbs.distance(rbs_begin, rbs_end));
     rbs.reset(rbs.begin(), rbs.end());
     BOOST_REQUIRE_NO_THROW(rbs.distance(rbs_begin, rbs_end));
     rbs.reset(new_rbs_begin, rbs.end());
-    BOOST_REQUIRE_THROW(rbs.distance(rbs_begin, rbs_end), outdated_iterator);
+    BOOST_REQUIRE_EXCEPTION(rbs.distance(rbs_begin, rbs_end), outdated_iterator<type1>, exception_insufficient_data);
 }
