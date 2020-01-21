@@ -9,42 +9,96 @@
 
 using namespace funny_it;
 
-BOOST_AUTO_TEST_CASE( ring_iterator_sequence_test ) {
+template <class V, size_t N>
+static void rotate_sequence (ring_buffer_sequence<V, N> & rbs)
+{
+    char external_buffer[6] = {0x31,0x32,0x33,0x34,0x35,0x36};
+    rbs.fill_data(external_buffer, sizeof(external_buffer));
+    rbs.align();
+    rbs.fill_data(external_buffer, sizeof(external_buffer));
+    BOOST_REQUIRE (rbs.tail() - rbs.head() == 4);
+}
+
+BOOST_AUTO_TEST_CASE (ring_buffer_iterator_inc_operators)
+{
+    char c_array[10] {};
+    ring_buffer_sequence rbs1 (c_array);
+    using iter_type = typename decltype(rbs1)::const_iterator;
+
+    rotate_sequence (rbs1);
+
+    {
+        auto iter = rbs1.begin();
+        // inc with no rotation yet
+        BOOST_REQUIRE (*iter == 0x31);
+        BOOST_REQUIRE_NO_THROW (iter = iter+2);
+        //BOOST_REQUIRE_NO_THROW(iter += 2);
+        BOOST_REQUIRE (*iter == 0x33);
+    }
+
+    {
+        auto iter = rbs1.begin();
+        // inc with rotation
+        BOOST_REQUIRE_NO_THROW(iter += 5);
+        BOOST_REQUIRE (*iter == 0x36);
+    }
+
+    {
+        auto iter1 = rbs1.begin();
+        auto const iter2 = iter1;
+        // inc with exception
+        BOOST_REQUIRE_THROW(iter1 += 7, out_of_bounds<iter_type>);
+        BOOST_REQUIRE(iter1 == iter2);
+    }
+    {
+        // operator + and operator += and operator ++
+        auto iter1 = rbs1.begin();
+        auto iter2 = rbs1.begin();
+        auto iter3 = rbs1.begin();
+        iter1 = iter1 + 3;
+        iter2 += 3;
+        ++++++iter3;
+        BOOST_REQUIRE(iter1 == iter2);
+        BOOST_REQUIRE(iter1 == iter3);
+    }
+}
+
+BOOST_AUTO_TEST_CASE( ring_iterator_sequence_comparison ) {
 
     char c_array[10] {};
     ring_buffer_sequence rbs1 (c_array);
     BOOST_REQUIRE (rbs1.head() == rbs1.tail());
-    BOOST_REQUIRE (rbs1.head() == rbs1.buffer_begin());
+    BOOST_REQUIRE (rbs1.head() == rbs1.bbegin());
     BOOST_REQUIRE (rbs1.head() == std::end(rbs1));
-    BOOST_REQUIRE (rbs1.buffer_size() == 10);
+    BOOST_REQUIRE (rbs1.bsize() == 10);
 
     char external_buffer[6] = {0x31,0x32,0x33,0x34,0x35,0x36};
 
     rbs1.fill_data(external_buffer, sizeof(external_buffer));
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+0), 0x31);
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+1), 0x32);
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+2), 0x33);
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+3), 0x34);
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+4), 0x35);
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+5), 0x36);
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+6), 0);
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+7), 0);
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+8), 0);
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+9), 0);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 0), 0x31);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 1), 0x32);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 2), 0x33);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 3), 0x34);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 4), 0x35);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 5), 0x36);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 6), 0);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 7), 0);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 8), 0);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 9), 0);
     BOOST_REQUIRE (rbs1.head() - rbs1.tail() == 6);
 
     rbs1.fill_data(external_buffer, sizeof(external_buffer)); // rotation
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+0), 0x35);
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+1), 0x36);
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+2), 0x33);
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+3), 0x34);
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+4), 0x35);
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+5), 0x36);
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+6), 0x31);
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+7), 0x32);
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+8), 0x33);
-    BOOST_REQUIRE_EQUAL(*(rbs1.buffer_begin()+9), 0x34);
-    BOOST_REQUIRE (rbs1.head() == rbs1.buffer_begin()+2 );
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 0), 0x35);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 1), 0x36);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 2), 0x33);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 3), 0x34);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 4), 0x35);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 5), 0x36);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 6), 0x31);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 7), 0x32);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 8), 0x33);
+    BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 9), 0x34);
+    BOOST_REQUIRE (rbs1.head() == rbs1.bbegin() + 2 );
 
     std::array<char,10> std_array {};
     ring_buffer_sequence rbs2 (std_array);
@@ -53,12 +107,13 @@ BOOST_AUTO_TEST_CASE( ring_iterator_sequence_test ) {
     rbs2.fill_data(external_buffer, sizeof(external_buffer));
 
     BOOST_REQUIRE(rbs1 == rbs2);
+}
 
-    BOOST_REQUIRE (rbs1.head() != rbs1.tail());
-    rbs1.align();
-    BOOST_REQUIRE (rbs1.head() == rbs1.tail());
-
+BOOST_AUTO_TEST_CASE( ring_iterator_sequence_align_and_size ) {
+    std::array<char,10> std_array {};
     ring_buffer_sequence rbs3 (std_array);
+    char external_buffer[6] = {0x31,0x32,0x33,0x34,0x35,0x36};
+
     rbs3.fill_data(external_buffer, sizeof(external_buffer));
     BOOST_REQUIRE_EQUAL (rbs3.size(), 6);
     BOOST_REQUIRE (rbs3.head() > rbs3.tail());
@@ -105,8 +160,8 @@ BOOST_AUTO_TEST_CASE( ring_iterator_standard_algorithms_test )
     auto __ = std::search (rbs.begin(), rbs.end(), sub_seq.begin(), sub_seq.end());
     BOOST_REQUIRE(__ != std::end(rbs));
     BOOST_REQUIRE(*__ == '4');
-    BOOST_REQUIRE(__ == rbs.buffer_begin() + 9);
-    BOOST_REQUIRE(rbs.buffer_begin() + 9 == __);
+    BOOST_REQUIRE(__ == rbs.bbegin() + 9);
+    BOOST_REQUIRE(rbs.bbegin() + 9 == __);
 
     ++__;
     auto ___ = __;
@@ -127,7 +182,7 @@ BOOST_AUTO_TEST_CASE( ring_iterator_align_by_iterator_test )
     BOOST_REQUIRE (__ != std::end(rbs));
     BOOST_REQUIRE (*__ == '#');
     BOOST_REQUIRE_NO_THROW(rbs.align(__));
-    BOOST_REQUIRE (rbs.tail() == rbs.buffer_begin()+ 4);
+    BOOST_REQUIRE (rbs.tail() == rbs.bbegin()+ 4);
 
     // new search find nothing.
     BOOST_REQUIRE ((__ = std::find (rbs.begin(), rbs.end(), '#')) == std::end(rbs));
@@ -151,18 +206,23 @@ BOOST_AUTO_TEST_CASE( ring_iterator_distance_test)
 
     rbs.align(rbs.begin()); //rbs.tail() == rbs.buffer_begin()+ 1
 
-    BOOST_REQUIRE_THROW(rbs.distance(cit1,cit2), out_of_bounds);
+    using iter_type = typename decltype(rbs)::const_iterator;
+
+    BOOST_REQUIRE_THROW(rbs.distance(cit1,cit2), out_of_bounds<iter_type>); // cit1, cit2 out of range
     ++cit1;
-    BOOST_REQUIRE_THROW(rbs.distance(cit1,cit2), out_of_bounds);
+    BOOST_REQUIRE_THROW(rbs.distance(cit1,cit2), out_of_bounds<iter_type>); // cit2 out of range
     ++cit2;
-    BOOST_REQUIRE_NO_THROW(rbs.distance(cit1,cit2));
-    ++++++cit1, ++++++cit2;
-    BOOST_REQUIRE_NO_THROW(rbs.distance(cit1,cit2));
-    ++cit2;
-    BOOST_REQUIRE_THROW(rbs.distance(cit1,cit2), out_of_bounds);
-    cit2 = cit1;
-    ++cit1;
-    BOOST_REQUIRE_THROW(rbs.distance(cit1,cit2), out_of_bounds);
+    BOOST_REQUIRE_NO_THROW(rbs.distance(cit1,cit2)); // both are in range
+    ++++++++cit1, ++++++++cit2;
+
+    BOOST_REQUIRE_NO_THROW(rbs.distance(cit1,cit2)); // both are still in range (at head position)
+    auto dist = rbs.distance(cit1,cit2);
+    BOOST_REQUIRE (dist == 0);
+
+    BOOST_REQUIRE (cit1 == rbs.head());
+    BOOST_REQUIRE (cit2 == rbs.head());
+    BOOST_REQUIRE_THROW(++cit2, out_of_bounds<iter_type>);
+    BOOST_REQUIRE (cit2 == cit1);
 }
 
 using type1 = funny_it::ring_buffer_iterator<char, 10>;

@@ -55,14 +55,23 @@ namespace funny_it
         {
             if (it.ptr_ < it.sequence_->tail_)
                 return false;
-            return it.ptr_ < it.sequence_->head_;
+            return it.ptr_ <= it.sequence_->head_;
         } else
         {
-            return !((it.ptr_ < it.sequence_->tail_) && (it.ptr_ >= it.sequence_->head_));
+            return !((it.ptr_ < it.sequence_->tail_) && (it.ptr_ > it.sequence_->head_));
         }
     }
 
-    struct out_of_bounds : public std::exception {};
+    template <class It>
+    struct out_of_bounds : public std::exception
+    {
+        It it_;
+        explicit out_of_bounds (It it) : it_(move(it)) {}
+        It get_iter() const
+        {
+            return it_;
+        }
+    };
 
     /*
      * Throws if an iterator is out of the range [tail-head)
@@ -72,7 +81,7 @@ namespace funny_it
     {
         if (!is_iter_valid(it))
         {
-            throw out_of_bounds();
+            throw out_of_bounds(it);
         }
     }
 
@@ -113,6 +122,7 @@ namespace funny_it
             {
                 ptr_ = other.ptr_;
                 up_to_date_flag = other.up_to_date_flag;
+                sequence_ = other.sequence_;
             }
             return *this;
         }
@@ -140,13 +150,22 @@ namespace funny_it
             return *ptr_;
         }
 
-        constexpr class_type & operator ++() noexcept
+        constexpr class_type & operator ++()
+        {
+            return *this += 1;
+        }
+
+        constexpr class_type & operator +(int n)
+        {
+            return *this += n;
+        }
+
+        constexpr class_type & operator +=(int n)
         {
             throw_if_iter_outdated(*this);
-            if (++ptr_ == sequence_->buffer_end())
-            {
-                ptr_ = sequence_->buffer_begin();
-            }
+            auto tmp_ptr = sequence_->bbegin() + ((ptr_ + n - sequence_->bbegin()) % sequence_->bsize());
+            throw_if_iter_invalid(class_type (sequence_, tmp_ptr));
+            std::swap(tmp_ptr, ptr_);
             return *this;
         }
     };
@@ -158,23 +177,30 @@ namespace funny_it
     }
 
     template <class V, size_t N>
-    struct ring_buffer_limits
+    constexpr bool operator == (ring_buffer_iterator<V,N> const & iter, V const * const value) noexcept
+    {
+        return iter == value;
+    }
+
+
+    template <class V, size_t N>
+    struct ring_buffer_base
     {
     private:
         V (& buf_)[N];
     protected:
         using buf_type = decltype(buf_);
-        explicit ring_buffer_limits (V (& buf)[N] ) : buf_(buf) {}
+        explicit ring_buffer_base (V (& buf)[N] ) : buf_(buf) {}
 
-        constexpr V * buffer_begin() const noexcept
+        constexpr V * bbegin() const noexcept
         {
             return std::begin(buf_);
         }
-        constexpr V * buffer_end() const noexcept
+        constexpr V * bend() const noexcept
         {
             return std::end(buf_);
         }
-        [[nodiscard]] constexpr decltype(N) buffer_size() const noexcept
+        [[nodiscard]] constexpr decltype(N) bsize() const noexcept
         {
             return N;
         }
@@ -184,7 +210,7 @@ namespace funny_it
     struct iter_mixture : public std::exception {};
 
     template <class V, size_t N>
-    class ring_buffer_sequence : private ring_buffer_limits<V,N>
+    class ring_buffer_sequence : private ring_buffer_base<V,N>
     {
         template<typename Iter>
         friend bool is_iter_up_to_date(Iter it) noexcept;
@@ -193,23 +219,23 @@ namespace funny_it
         template<typename Iter>
         friend void throw_if_iter_invalid(Iter const & it);
 
-        V * head_ = buffer_begin();
-        V * tail_ = buffer_begin();
+        V * head_ = bbegin();
+        V * tail_ = bbegin();
         unsigned up_to_date_flag = 0;
 
     public:
         using class_type = ring_buffer_sequence<V,N>;
-        using inherited_class_type = ring_buffer_limits<V,N>;
-        using inherited_class_type::buffer_begin;
-        using inherited_class_type::buffer_end;
-        using inherited_class_type::buffer_size;
+        using inherited_class_type = ring_buffer_base<V,N>;
+        using inherited_class_type::bbegin;
+        using inherited_class_type::bend;
+        using inherited_class_type::bsize;
 
         using typename inherited_class_type::buf_type ;
 
         using const_iterator = ring_buffer_iterator<V, N>;
         friend const_iterator;
 
-        explicit constexpr ring_buffer_sequence (V (& buffer)[N]) : ring_buffer_limits<V,N>(buffer){}
+        explicit constexpr ring_buffer_sequence (V (& buffer)[N]) : ring_buffer_base<V,N>(buffer){}
         explicit constexpr ring_buffer_sequence (std::array<V, N> & array) : inherited_class_type(reinterpret_cast<buf_type>(array))
         {
             static_assert (sizeof array == sizeof(buf_type));
@@ -248,29 +274,27 @@ namespace funny_it
 
         constexpr void fill_data(V const * const external_buf, uint8_t bytes_transferred)
         {
-            if ((head_ + bytes_transferred) > buffer_end())
+            if ((head_ + bytes_transferred) > bend())
             {
-                auto const rest_1 = buffer_end() - head_;
+                auto const rest_1 = bend() - head_;
                 std::copy (external_buf, external_buf + rest_1, head_);
-                auto const rest_2 = head_ + bytes_transferred - buffer_end();
-                std::copy (external_buf + rest_1, external_buf + rest_1 + rest_2, buffer_begin());
-                head_ = buffer_begin() + rest_2;
+                auto const rest_2 = head_ + bytes_transferred - bend();
+                std::copy (external_buf + rest_1, external_buf + rest_1 + rest_2, bbegin());
+                head_ = bbegin() + rest_2;
             } else
             {
                 std::copy (external_buf, external_buf + bytes_transferred, head_);
                 head_ += bytes_transferred;
-                if (head_ == buffer_end())
+                if (head_ == bend())
                 {
-                    head_ = buffer_begin();
+                    head_ = bbegin();
                 }
             }
         }
 
         constexpr bool operator ==(class_type const & other) const noexcept
         {
-            return (std::equal(buffer_begin(), buffer_end(), other.buffer_begin()))
-                   && (head() - buffer_begin() == other.head() - other.buffer_begin())
-                   && (tail() - buffer_begin() == other.tail() - other.buffer_begin());
+            return ((head_ - bbegin() == other.head_ - other.bbegin()) && (tail_ - bbegin() == other.tail_ - other.bbegin() && std::equal(bbegin(), bend(), other.bbegin())));
         }
 
         constexpr bool operator !=(class_type const & other) const noexcept
@@ -312,7 +336,7 @@ namespace funny_it
                 return head_ - tail_;
             } else
             {
-                return (buffer_end() - tail_) + (head_ - buffer_begin());
+                return (bend() - tail_) + (head_ - bbegin());
             }
         }
 
