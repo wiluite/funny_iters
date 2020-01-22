@@ -18,9 +18,9 @@ namespace funny_it
         It it_;
     public:
         explicit outdated_iterator (It it) : it_(move(it)) {}
-        It get_iter() const
+        typename It::value_type* get_iter() const
         {
-            return it_;
+            return it_.ptr_;
         }
     };
 
@@ -97,6 +97,10 @@ namespace funny_it
         friend bool is_iter_valid(Iter const & it) noexcept;
         template<typename Iter>
         friend void throw_if_iter_invalid(Iter const & it);
+
+        template <class It>
+        friend class outdated_iterator;
+
 
     public:
         friend class ring_buffer_sequence<ValueType, N>;
@@ -241,13 +245,18 @@ namespace funny_it
             static_assert (sizeof array == sizeof(buf_type));
         }
 
-        void reset(const_iterator tail_iter, const_iterator head_iter)
+        ring_buffer_sequence (class_type const & other) = delete;
+        ring_buffer_sequence &operator =(class_type const & other) = delete;
+
+        ring_buffer_sequence (class_type && other) noexcept = delete;
+        ring_buffer_sequence &operator =(class_type && other) noexcept = delete;
+
+        void reset(const_iterator const & tail_iter, const_iterator const & head_iter) noexcept
         {
-            assert (tail_iter == *&tail_iter);
-            if ((&*tail_iter != tail_) || (&*head_iter != head_))
+            if ((tail_iter.ptr_ != tail_) || (head_iter.ptr_ != head_))
             {
-                tail_ = &*tail_iter;
-                head_ = &*head_iter;
+                tail_ = tail_iter.ptr_;
+                head_ = head_iter.ptr_;
                 ++up_to_date_flag;
             }
         }
@@ -313,20 +322,20 @@ namespace funny_it
          */
         constexpr void align (const_iterator it)
         {
-            if (&(*it) == head_)
+            if (std::addressof(*it) == head_)
             {
                 throw logic_exception();
             }
-            tail_ = &(*(++it));
+            tail_ = std::addressof(*++it);
         }
 
         constexpr void strict_align (const_iterator it)
         {
-            if (&(*it) == head_)
+            if (std::addressof(*it) == head_)
             {
                 throw logic_exception();
             }
-            tail_ = &(*(it));
+            tail_ = std::addressof(*it);
         }
 
         constexpr decltype(N) size() const noexcept
@@ -341,26 +350,33 @@ namespace funny_it
         }
 
         template<typename Iter>
-        typename std::iterator_traits<Iter>::difference_type distance(Iter it1, Iter it2)
+        typename std::iterator_traits<Iter>::difference_type distance(Iter start_it, Iter stop_it)
         {
             static_assert(std::is_same<Iter, const_iterator>::value);
             static_assert(std::numeric_limits<typename std::iterator_traits<const_iterator>::difference_type>::is_signed);
 
-            throw_if_iter_outdated(it1);
-            throw_if_iter_outdated(it2);
-            throw_if_iter_invalid(it1);
-            throw_if_iter_invalid(it2);
+            throw_if_iter_outdated(start_it);
+            throw_if_iter_outdated(stop_it);
+            throw_if_iter_invalid(start_it);
+            throw_if_iter_invalid(stop_it);
 
-            typename std::iterator_traits<Iter>::difference_type diff = 0;
-            while (it1 != it2)
+            if (head_ >= tail_)
             {
-                if (&*++it1 == head_)
+                return stop_it.ptr_ - start_it.ptr_;
+            } else
+            {
+                if (stop_it.ptr_ >= start_it.ptr_)
                 {
-                    throw iter_mixture();
+                    if (start_it.ptr_ < tail_)
+                    {
+                        throw iter_mixture();
+                    }
+                    return stop_it.ptr_ - start_it.ptr_;
+                } else
+                {
+                    return stop_it.ptr_ + bsize() - start_it.ptr_;
                 }
-                ++diff;
             }
-            return diff;
         }
     };
 

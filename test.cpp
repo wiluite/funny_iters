@@ -10,7 +10,7 @@
 using namespace funny_it;
 
 template <class V, size_t N>
-static void rotate_sequence (ring_buffer_sequence<V, N> & rbs)
+static void make_rotated_sequence (ring_buffer_sequence<V, N> & rbs)
 {
     char external_buffer[6] = {0x31,0x32,0x33,0x34,0x35,0x36};
     rbs.fill_data(external_buffer, sizeof(external_buffer));
@@ -23,9 +23,8 @@ BOOST_AUTO_TEST_CASE (ring_buffer_iterator_inc_operators)
 {
     char c_array[10] {};
     ring_buffer_sequence rbs1 (c_array);
-    using iter_type = typename decltype(rbs1)::const_iterator;
 
-    rotate_sequence (rbs1);
+    make_rotated_sequence (rbs1);
 
     {
         auto iter = rbs1.begin();
@@ -44,6 +43,7 @@ BOOST_AUTO_TEST_CASE (ring_buffer_iterator_inc_operators)
     }
 
     {
+        using iter_type = typename decltype(rbs1)::const_iterator;
         auto iter1 = rbs1.begin();
         auto const iter2 = iter1;
         // inc with exception
@@ -192,43 +192,56 @@ BOOST_AUTO_TEST_CASE( ring_iterator_align_by_iterator_test )
 
 BOOST_AUTO_TEST_CASE( ring_iterator_distance_test)
 {
-    std::array<char,10> std_array {};
-    ring_buffer_sequence rbs (std_array);
-    char external_buffer[5]{};
-    rbs.fill_data(external_buffer, sizeof(external_buffer));
+    {
+        std::array<char,10> std_array {};
+        ring_buffer_sequence rbs (std_array);
+        char external_buffer[5]{};
+        rbs.fill_data(external_buffer, sizeof(external_buffer));
 
-    BOOST_REQUIRE_NO_THROW(rbs.distance(++rbs.begin(), ++++rbs.begin()));
-    BOOST_REQUIRE_EQUAL(rbs.distance(++rbs.begin(),++++rbs.begin()), 1);
-    BOOST_REQUIRE_THROW(rbs.distance(++++rbs.begin(), ++rbs.begin()), iter_mixture);
+        BOOST_REQUIRE_NO_THROW(rbs.distance(++rbs.begin(), ++++rbs.begin()));
+        BOOST_REQUIRE_EQUAL(rbs.distance(++rbs.begin(),++++rbs.begin()), 1);
+        //BOOST_REQUIRE_THROW(rbs.distance(++++rbs.begin(), ++rbs.begin()), iter_mixture);
 
-    typename decltype(rbs)::const_iterator cit1 = rbs.begin();
-    typename decltype(rbs)::const_iterator cit2 = rbs.begin();
+        typename decltype(rbs)::const_iterator cit1 = rbs.begin();
+        typename decltype(rbs)::const_iterator cit2 = rbs.begin();
 
-    rbs.align(rbs.begin()); //rbs.tail() == rbs.buffer_begin()+ 1
+        rbs.align(rbs.begin()); //rbs.tail() == rbs.buffer_begin()+ 1
 
-    using iter_type = typename decltype(rbs)::const_iterator;
+        using iter_type = typename decltype(rbs)::const_iterator;
 
-    BOOST_REQUIRE_THROW(rbs.distance(cit1,cit2), out_of_bounds<iter_type>); // cit1, cit2 out of range
-    ++cit1;
-    BOOST_REQUIRE_THROW(rbs.distance(cit1,cit2), out_of_bounds<iter_type>); // cit2 out of range
-    ++cit2;
-    BOOST_REQUIRE_NO_THROW(rbs.distance(cit1,cit2)); // both are in range
-    ++++++++cit1, ++++++++cit2;
+        BOOST_REQUIRE_THROW(rbs.distance(cit1,cit2), out_of_bounds<iter_type>); // cit1, cit2 out of range
+        ++cit1;
+        BOOST_REQUIRE_THROW(rbs.distance(cit1,cit2), out_of_bounds<iter_type>); // cit2 out of range
+        ++cit2;
+        BOOST_REQUIRE_NO_THROW(rbs.distance(cit1,cit2)); // both are in range
+        ++++++++cit1, ++++++++cit2;
 
-    BOOST_REQUIRE_NO_THROW(rbs.distance(cit1,cit2)); // both are still in range (at head position)
-    auto dist = rbs.distance(cit1,cit2);
-    BOOST_REQUIRE (dist == 0);
+        BOOST_REQUIRE_NO_THROW(rbs.distance(cit1,cit2)); // both are still in range (at head position)
+        auto dist = rbs.distance(cit1,cit2);
+        BOOST_REQUIRE (dist == 0);
 
-    BOOST_REQUIRE (cit1 == rbs.head());
-    BOOST_REQUIRE (cit2 == rbs.head());
-    BOOST_REQUIRE_THROW(++cit2, out_of_bounds<iter_type>);
-    BOOST_REQUIRE (cit2 == cit1);
+        BOOST_REQUIRE (cit1 == rbs.head());
+        BOOST_REQUIRE (cit2 == rbs.head());
+        BOOST_REQUIRE_THROW(++cit2, out_of_bounds<iter_type>);
+        BOOST_REQUIRE (cit2 == cit1);
+    }
+    {
+        char c_array[10] {};
+        ring_buffer_sequence rbs (c_array);
+        BOOST_REQUIRE_EQUAL(rbs.distance(rbs.begin(), rbs.end()), 0);
+        make_rotated_sequence (rbs);
+        BOOST_REQUIRE_EQUAL(rbs.distance(rbs.begin(), rbs.end()), 6);
+        BOOST_REQUIRE_THROW(rbs.distance(rbs.end(), rbs.begin()), iter_mixture);
+        BOOST_REQUIRE_THROW(rbs.distance(rbs.end(), ++rbs.begin()), iter_mixture);
+        BOOST_REQUIRE_EQUAL(rbs.distance(++rbs.begin(), rbs.end()), 5);
+    }
+
 }
 
 using type1 = funny_it::ring_buffer_iterator<char, 10>;
 bool exception_insufficient_data (outdated_iterator<type1> const & e)
 {
-    //std::cout << (int)*e.get_iter() << std::endl;
+    printf("%d\n", e.get_iter());
     return true;
 }
 
