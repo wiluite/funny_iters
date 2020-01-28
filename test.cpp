@@ -181,13 +181,13 @@ BOOST_AUTO_TEST_CASE( ring_iterator_align_by_iterator_test )
     auto __  = std::find (rbs.begin(), rbs.end(), '#');
     BOOST_REQUIRE (__ != std::end(rbs));
     BOOST_REQUIRE (*__ == '#');
-    BOOST_REQUIRE_NO_THROW(rbs.align(__));
+    BOOST_REQUIRE_NO_THROW(rbs.align(__+1));
     BOOST_REQUIRE (rbs.tail() == rbs.bbegin()+ 4);
 
     // new search find nothing.
     BOOST_REQUIRE ((__ = std::find (rbs.begin(), rbs.end(), '#')) == std::end(rbs));
-    // and you should not pass the not-succeeding iterator to
-    BOOST_REQUIRE_THROW(rbs.align(__), logic_exception);
+    using iter_type = typename decltype(rbs)::const_iterator;
+    BOOST_REQUIRE_THROW(rbs.align(__+1), out_of_bounds<iter_type>);
 }
 
 BOOST_AUTO_TEST_CASE( ring_iterator_distance_test)
@@ -200,12 +200,11 @@ BOOST_AUTO_TEST_CASE( ring_iterator_distance_test)
 
         BOOST_REQUIRE_NO_THROW(rbs.distance(++rbs.begin(), ++++rbs.begin()));
         BOOST_REQUIRE_EQUAL(rbs.distance(++rbs.begin(),++++rbs.begin()), 1);
-        //BOOST_REQUIRE_THROW(rbs.distance(++++rbs.begin(), ++rbs.begin()), iter_mixture);
 
         typename decltype(rbs)::const_iterator cit1 = rbs.begin();
         typename decltype(rbs)::const_iterator cit2 = rbs.begin();
 
-        rbs.align(rbs.begin()); //rbs.tail() == rbs.buffer_begin()+ 1
+        rbs.align(rbs.begin()+1); //rbs.tail() == rbs.buffer_begin()+ 1
 
         using iter_type = typename decltype(rbs)::const_iterator;
 
@@ -235,13 +234,12 @@ BOOST_AUTO_TEST_CASE( ring_iterator_distance_test)
         BOOST_REQUIRE_THROW(rbs.distance(rbs.end(), ++rbs.begin()), iter_mixture);
         BOOST_REQUIRE_EQUAL(rbs.distance(++rbs.begin(), rbs.end()), 5);
     }
-
 }
 
 using type1 = funny_it::ring_buffer_iterator<char, 10>;
 bool exception_insufficient_data (outdated_iterator<type1> const & e)
 {
-    printf("%d\n", e.get_iter());
+    //printf("%s\n", e.get_iter()); // fixme
     return true;
 }
 

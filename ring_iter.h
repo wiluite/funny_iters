@@ -186,6 +186,12 @@ namespace funny_it
         return iter == value;
     }
 
+    template <class V, size_t N>
+    constexpr ring_buffer_iterator<V,N> operator + (ring_buffer_iterator<V,N> const & iter, int n) noexcept
+    {
+        auto tmp(iter);
+        return tmp+n;
+    }
 
     template <class V, size_t N>
     struct ring_buffer_base
@@ -210,7 +216,6 @@ namespace funny_it
         }
     };
 
-    struct logic_exception : public std::exception {};
     struct iter_mixture : public std::exception {};
 
     template <class V, size_t N>
@@ -317,24 +322,14 @@ namespace funny_it
         }
 
         /**
-         * Sets the tail value to the position following the position described by the passed iterator
+         * Sets the tail value to the position described by the passed iterator
          * @param it iterator (mainly returned by a search algorithm)
          */
         constexpr void align (const_iterator it)
         {
-            if (std::addressof(*it) == head_)
-            {
-                throw logic_exception();
-            }
-            tail_ = std::addressof(*++it);
-        }
+            throw_if_iter_outdated(it);
+            throw_if_iter_invalid(it);
 
-        constexpr void strict_align (const_iterator it)
-        {
-            if (std::addressof(*it) == head_)
-            {
-                throw logic_exception();
-            }
             tail_ = std::addressof(*it);
         }
 
