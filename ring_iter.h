@@ -187,7 +187,7 @@ namespace funny_it
     }
 
     template <class V, size_t N>
-    constexpr ring_buffer_iterator<V,N> operator + (ring_buffer_iterator<V,N> const & iter, int n) noexcept
+    constexpr ring_buffer_iterator<V,N> operator + (ring_buffer_iterator<V,N> const & iter, int n)
     {
         auto tmp(iter);
         return tmp+n;
