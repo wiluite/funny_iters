@@ -1,7 +1,3 @@
-//
-// Created by ET on 31.12.2019.
-//
-
 #pragma once
 #include <iterator>
 #include <array>
@@ -83,6 +79,13 @@ namespace funny_it
         {
             throw out_of_bounds(it);
         }
+    }
+
+    template<typename Iter>
+    void throw_if_iterator_abnormal(Iter const & it)
+    {
+        throw_if_iter_outdated(it);
+        throw_if_iter_invalid(it);
     }
 
     template<class, size_t N>
@@ -326,9 +329,7 @@ namespace funny_it
          */
         constexpr void align (const_iterator it)
         {
-            throw_if_iter_outdated(it);
-            throw_if_iter_invalid(it);
-
+            throw_if_iterator_abnormal(it);
             tail_ = std::addressof(*it);
         }
 
@@ -344,15 +345,13 @@ namespace funny_it
         }
 
         template<typename Iter>
-        typename std::iterator_traits<Iter>::difference_type distance(Iter start_it, Iter stop_it)
+        constexpr typename std::iterator_traits<Iter>::difference_type distance(Iter start_it, Iter stop_it) const
         {
             static_assert(std::is_same<Iter, const_iterator>::value);
             static_assert(std::numeric_limits<typename std::iterator_traits<const_iterator>::difference_type>::is_signed);
 
-            throw_if_iter_outdated(start_it);
-            throw_if_iter_outdated(stop_it);
-            throw_if_iter_invalid(start_it);
-            throw_if_iter_invalid(stop_it);
+            throw_if_iterator_abnormal(start_it);
+            throw_if_iterator_abnormal(stop_it);
 
             if (head_ >= tail_)
             {
