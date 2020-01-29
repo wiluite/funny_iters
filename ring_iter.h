@@ -298,8 +298,7 @@ namespace funny_it
             } else
             {
                 std::copy (external_buf, external_buf + bytes_transferred, head_);
-                head_ += bytes_transferred;
-                if (head_ == bend())
+                if ((head_ += bytes_transferred) == bend())
                 {
                     head_ = bbegin();
                 }
