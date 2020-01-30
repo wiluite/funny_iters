@@ -14,6 +14,15 @@ std::array<std::byte, sizeof...(Ts)> make_bytes(Ts && ... args) noexcept
     return {std::byte(std::forward<Ts>(args))...};
 }
 
+template <class V, size_t N>
+static void make_ring_buffer_rotated_sequence (funny_it::ring_buffer_sequence<V, N> & rbs)
+{
+    char external_buffer[3] = {0x31,0x32,0x33};
+    rbs.fill_data(external_buffer, sizeof(external_buffer));
+    rbs.align();
+    rbs.fill_data(external_buffer, sizeof(external_buffer));
+}
+
 int main(int argc, char const * argv[] )
 {
     using namespace funny_it;
@@ -49,6 +58,13 @@ int main(int argc, char const * argv[] )
     std::array<std::byte,2> ar {std::byte(1), std::byte(1)};
     auto const __ = std::search(std::begin(seq), std::end(seq), ar.begin(), ar.end());
     assert (__ - std::begin(seq) == 8);
+
+    // ring buffer demo:
+    char c_array[4] {};
+    ring_buffer_sequence rbs (c_array);
+    make_ring_buffer_rotated_sequence(rbs); //1,2,3,1,2,3
+    // and the result is "123"
+    std::cout << std::string (rbs.begin(), rbs.end()) << '\n';
 
     return 0;
 }
