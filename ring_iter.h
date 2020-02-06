@@ -162,9 +162,23 @@ namespace funny_it
             return *this += 1;
         }
 
-        constexpr class_type & operator +(int n)
+        constexpr class_type operator +(int n) const
         {
-            return *this += n;
+            auto it = *this;
+            it += n;
+            return it;
+        }
+
+        constexpr class_type operator ++(int)
+        {
+            class_type ret(*this);
+            operator ++();
+            return ret;
+        }
+
+        constexpr value_type & operator[] (typename std::iterator_traits<class_type>::difference_type d) const
+        {
+            return *(operator +(d));
         }
 
         constexpr class_type & operator +=(int n)
@@ -174,6 +188,11 @@ namespace funny_it
             throw_if_iter_invalid(class_type (sequence_, tmp_ptr));
             std::swap(tmp_ptr, ptr_);
             return *this;
+        }
+
+        constexpr explicit operator bool() const
+        {
+            return (ptr_ != sequence_->head());
         }
     };
 
@@ -372,6 +391,5 @@ namespace funny_it
             }
         }
     };
-
 }
 
