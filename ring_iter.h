@@ -121,6 +121,16 @@ namespace funny_it
         {
         }
 
+        class postinc_return{
+            sequence_class const * sequence_;
+            value_type const * ptr_;
+            unsigned up_to_date_flag;
+
+        public:
+            explicit postinc_return(ring_buffer_iterator const& rbi) : sequence_(rbi.sequence_), ptr_(rbi.ptr_), up_to_date_flag(rbi.up_to_date_flag) {}
+            value_type operator *() const { return *ptr_; }
+        };
+
     public:
         ring_buffer_iterator (class_type const & other) = default;
         ring_buffer_iterator &operator =(class_type const & other)
@@ -153,7 +163,7 @@ namespace funny_it
 
         constexpr value_type & operator *() const
         {
-            throw_if_iter_outdated(*this);
+            throw_if_iterator_abnormal (*this);
             return *ptr_;
         }
 
@@ -169,10 +179,11 @@ namespace funny_it
             return it;
         }
 
-        constexpr class_type operator ++(int)
+        //FIXME: overloaded “operator++” returns a non const, and clang-tidy complains
+        constexpr postinc_return operator ++(int)
         {
-            class_type ret(*this);
-            operator ++();
+            postinc_return ret (*this);
+            ++*this;
             return ret;
         }
 
