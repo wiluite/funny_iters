@@ -87,6 +87,8 @@ BOOST_AUTO_TEST_CASE( ring_iterator_sequence_comparison ) {
     BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 9), 0);
     BOOST_REQUIRE (rbs1.head() - rbs1.tail() == 6);
 
+    rbs1.align();
+
     rbs1.fill_data(external_buffer, sizeof(external_buffer)); // rotation
     BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 0), 0x35);
     BOOST_REQUIRE_EQUAL(*(rbs1.bbegin() + 1), 0x36);
@@ -104,6 +106,7 @@ BOOST_AUTO_TEST_CASE( ring_iterator_sequence_comparison ) {
     ring_buffer_sequence rbs2 (std_array);
     BOOST_REQUIRE(rbs1 != rbs2);
     rbs2.fill_data(external_buffer, sizeof(external_buffer));
+    rbs2.align();
     rbs2.fill_data(external_buffer, sizeof(external_buffer));
 
     BOOST_REQUIRE(rbs1 == rbs2);
@@ -260,4 +263,14 @@ BOOST_AUTO_TEST_CASE( ring_iterator_reset_test )
     BOOST_REQUIRE_NO_THROW(rbs.distance(rbs_begin, rbs_end));
     rbs.reset(new_rbs_begin, rbs.end());
     BOOST_REQUIRE_EXCEPTION(rbs.distance(rbs_begin, rbs_end), outdated_iterator<type1>, exception_insufficient_data);
+}
+
+BOOST_AUTO_TEST_CASE( ring_iterator_overflow_test )
+{
+    std::array<char,10> std_array {};
+    ring_buffer_sequence rbs (std_array);
+    char external_buffer[9]{};
+    BOOST_REQUIRE_NO_THROW(rbs.fill_data(external_buffer, sizeof(external_buffer)-1));
+    BOOST_REQUIRE_NO_THROW(rbs.fill_data(external_buffer, 1));
+    BOOST_REQUIRE_THROW(rbs.fill_data(external_buffer, 1), typename decltype(rbs)::overflow_exception);
 }

@@ -6,6 +6,15 @@
 
 namespace funny_it
 {
+    /*
+     * Iterator belongs to the sequence that spawned it recently through begin(), end() and the sequence was not reset().
+     */
+    template<typename Iter>
+    bool is_iter_up_to_date(Iter it) noexcept
+    {
+        return it.up_to_date_flag == it.sequence_->up_to_date_flag;
+    }
+
     /**
      * \brief Outdated iterator exception
      */
@@ -19,15 +28,6 @@ namespace funny_it
             return it_.ptr_;
         }
     };
-
-    /*
-     * Iterator belongs to the sequence that spawned it recently through begin(), end() and the sequence was not reset().
-     */
-    template<typename Iter>
-    bool is_iter_up_to_date(Iter it) noexcept
-    {
-        return it.up_to_date_flag == it.sequence_->up_to_date_flag;
-    }
 
     /*
      * Throws if an iterator does not belong to the sequence that spawned it
@@ -88,7 +88,7 @@ namespace funny_it
         throw_if_iter_invalid(it);
     }
 
-    template<class, size_t N>
+    template<class, size_t>
     class ring_buffer_sequence;
 
     template <class ValueType, size_t N>
@@ -98,8 +98,6 @@ namespace funny_it
         friend bool is_iter_up_to_date(Iter it) noexcept;
         template<typename Iter>
         friend bool is_iter_valid(Iter const & it) noexcept;
-        template<typename Iter>
-        friend void throw_if_iter_invalid(Iter const & it);
 
         template <class It>
         friend class outdated_iterator;
@@ -179,7 +177,7 @@ namespace funny_it
             return it;
         }
 
-        //FIXME: overloaded “operator++” returns a non const, and clang-tidy complains
+        //FIXME: overloaded operator++ returns a non const, and clang-tidy complains
         constexpr postinc_return operator ++(int)
         {
             postinc_return ret (*this);
@@ -258,8 +256,6 @@ namespace funny_it
         friend bool is_iter_up_to_date(Iter it) noexcept;
         template<typename Iter>
         friend bool is_iter_valid(Iter const & it) noexcept;
-        template<typename Iter>
-        friend void throw_if_iter_invalid(Iter const & it);
 
         V * head_ = bbegin();
         V * tail_ = bbegin();
@@ -319,8 +315,18 @@ namespace funny_it
             return tail_;
         }
 
+        struct overflow_exception
+        {};
         constexpr void fill_data(V const * const external_buf, uint8_t bytes_transferred)
         {
+            printf ("size %d\n",size());
+            printf ("bytes%d\n",bytes_transferred);
+            printf ("bsize%d\n",bsize());
+
+            if (size() + bytes_transferred >= bsize())
+            {
+                throw overflow_exception();
+            }
             if ((head_ + bytes_transferred) > bend())
             {
                 auto const rest_1 = bend() - head_;
