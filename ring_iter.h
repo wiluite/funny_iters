@@ -6,6 +6,8 @@
 
 namespace funny_it
 {
+    using exception_checked_variant_type = std::integral_constant<bool, true>;
+    using exception_unchecked_variant_type = std::integral_constant<bool, false>;
     /*
      * Iterator belongs to the sequence that spawned it recently through begin(), end() and the sequence was not reset().
      */
@@ -82,16 +84,21 @@ namespace funny_it
     }
 
     template<typename Iter>
-    void throw_if_iterator_abnormal(Iter const & it)
+    void throw_if_iterator_abnormal(Iter const & it, exception_checked_variant_type)
     {
         throw_if_iter_outdated(it);
         throw_if_iter_invalid(it);
     }
 
-    template<class, size_t>
+    template<typename Iter>
+    void throw_if_iterator_abnormal(Iter const & it, exception_unchecked_variant_type)
+    {
+    }
+
+    template<class, size_t, class E>
     class ring_buffer_sequence;
 
-    template <class ValueType, size_t N>
+    template <class ValueType, size_t N, class E>
     class ring_buffer_iterator: public std::iterator<std::input_iterator_tag, ValueType, ptrdiff_t, void, ValueType>
     {
         template<typename Iter>
@@ -104,10 +111,10 @@ namespace funny_it
 
 
     public:
-        friend class ring_buffer_sequence<ValueType, N>;
-        using sequence_class = ring_buffer_sequence<ValueType, N>;
+        friend class ring_buffer_sequence<ValueType, N, E>;
+        using sequence_class = ring_buffer_sequence<ValueType, N, E>;
 
-        using class_type = ring_buffer_iterator<ValueType, N>;
+        using class_type = ring_buffer_iterator<ValueType, N, E>;
         using value_type = ValueType;
 
     private:
@@ -161,7 +168,7 @@ namespace funny_it
 
         constexpr value_type & operator *() const
         {
-            throw_if_iterator_abnormal (*this);
+            throw_if_iterator_abnormal (*this, E());
             return *ptr_;
         }
 
@@ -205,20 +212,20 @@ namespace funny_it
         }
     };
 
-    template <class V, size_t N>
-    constexpr bool operator == (V const * const value, ring_buffer_iterator<V,N> const & iter) noexcept
+    template <class V, size_t N, class E>
+    constexpr bool operator == (V const * const value, ring_buffer_iterator<V,N,E> const & iter) noexcept
     {
         return iter == value;
     }
 
-    template <class V, size_t N>
-    constexpr bool operator == (ring_buffer_iterator<V,N> const & iter, V const * const value) noexcept
+    template <class V, size_t N, class E>
+    constexpr bool operator == (ring_buffer_iterator<V,N,E> const & iter, V const * const value) noexcept
     {
         return iter == value;
     }
 
-    template <class V, size_t N>
-    constexpr ring_buffer_iterator<V,N> operator + (ring_buffer_iterator<V,N> const & iter, int n)
+    template <class V, size_t N, class E>
+    constexpr ring_buffer_iterator<V,N,E> operator + (ring_buffer_iterator<V,N,E> const & iter, int n)
     {
         auto tmp(iter);
         return tmp+n;
@@ -249,7 +256,7 @@ namespace funny_it
 
     struct iter_mixture : public std::exception {};
 
-    template <class V, size_t N>
+    template <class V, size_t N, class E = exception_checked_variant_type>
     class ring_buffer_sequence : private ring_buffer_base<V,N>
     {
         template<typename Iter>
@@ -270,7 +277,7 @@ namespace funny_it
 
         using typename inherited_class_type::buf_type ;
 
-        using const_iterator = ring_buffer_iterator<V, N>;
+        using const_iterator = ring_buffer_iterator<V, N, E>;
         friend const_iterator;
 
         explicit constexpr ring_buffer_sequence (V (& buffer)[N]) : ring_buffer_base<V,N>(buffer){}
@@ -319,10 +326,6 @@ namespace funny_it
         {};
         constexpr void fill_data(V const * const external_buf, uint8_t bytes_transferred)
         {
-            printf ("size %d\n",size());
-            printf ("bytes%d\n",bytes_transferred);
-            printf ("bsize%d\n",bsize());
-
             if (size() + bytes_transferred >= bsize())
             {
                 throw overflow_exception();
@@ -365,7 +368,7 @@ namespace funny_it
          */
         constexpr void align (const_iterator it)
         {
-            throw_if_iterator_abnormal(it);
+            throw_if_iterator_abnormal(it, E());
             tail_ = std::addressof(*it);
         }
 
@@ -386,8 +389,8 @@ namespace funny_it
             static_assert(std::is_same<Iter, const_iterator>::value);
             static_assert(std::numeric_limits<typename std::iterator_traits<const_iterator>::difference_type>::is_signed);
 
-            throw_if_iterator_abnormal(start_it);
-            throw_if_iterator_abnormal(stop_it);
+            throw_if_iterator_abnormal(start_it, E());
+            throw_if_iterator_abnormal(stop_it, E());
 
             if (head_ >= tail_)
             {

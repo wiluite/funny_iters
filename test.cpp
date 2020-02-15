@@ -154,7 +154,7 @@ BOOST_AUTO_TEST_CASE( ring_iterator_standard_algorithms_test )
     }
 
     auto const _  = std::find (rbs.begin(), rbs.end(), '6');
-    static_assert (std::is_same<decltype (_), ring_buffer_iterator<char, 10> const>::value);
+    static_assert (std::is_same<decltype (_), ring_buffer_iterator<char, 10, exception_checked_variant_type> const>::value);
     static_assert (std::is_same<decltype (_), decltype(rbs)::const_iterator const>::value);
     BOOST_REQUIRE(_ != std::end(rbs));
     BOOST_REQUIRE(*_ == '6');
@@ -239,7 +239,7 @@ BOOST_AUTO_TEST_CASE( ring_iterator_distance_test)
     }
 }
 
-using type1 = funny_it::ring_buffer_iterator<char, 10>;
+using type1 = funny_it::ring_buffer_iterator<char, 10, exception_checked_variant_type>;
 bool exception_insufficient_data (outdated_iterator<type1> const & e)
 {
     //printf("%s\n", e.get_iter()); // fixme
