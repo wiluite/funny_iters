@@ -35,13 +35,17 @@ namespace funny_it
      * Throws if an iterator does not belong to the sequence that spawned it
      */
     template<typename Iter>
-    void throw_if_iter_outdated(Iter const & it)
+    void throw_if_iter_outdated(Iter const & it, exception_checked_variant_type)
     {
         if (!is_iter_up_to_date(it))
         {
             throw outdated_iterator<Iter>(it);
         }
     }
+
+    template<typename Iter>
+    void throw_if_iter_outdated(Iter const & it, exception_unchecked_variant_type) noexcept {}
+
 
     /*
      * Iterator is within the range [tail-head)
@@ -75,31 +79,33 @@ namespace funny_it
      * Throws if an iterator is out of the range [tail-head)
      */
     template<typename Iter>
-    void throw_if_iter_invalid(Iter const & it)
+    void throw_if_iter_invalid(Iter const & it, exception_checked_variant_type)
     {
         if (!is_iter_valid(it))
         {
-            throw out_of_bounds(it);
+            throw out_of_bounds<Iter>(it);
         }
     }
 
     template<typename Iter>
-    void throw_if_iterator_abnormal(Iter const & it, exception_checked_variant_type)
+    void throw_if_iter_invalid(Iter const & it, exception_unchecked_variant_type) noexcept {}
+
+
+    template<typename Iter>
+    void throw_if_iterator_abnormal(Iter const & it, exception_checked_variant_type e)
     {
-        throw_if_iter_outdated(it);
-        throw_if_iter_invalid(it);
+        throw_if_iter_outdated(it, e);
+        throw_if_iter_invalid(it, e);
     }
 
     template<typename Iter>
-    void throw_if_iterator_abnormal(Iter const & it, exception_unchecked_variant_type)
-    {
-    }
+    void throw_if_iterator_abnormal(Iter const & it, exception_unchecked_variant_type) noexcept {}
 
     template<class, size_t, class E>
     class ring_buffer_sequence;
 
     template <class ValueType, size_t N, class E>
-    class ring_buffer_iterator: public std::iterator<std::input_iterator_tag, ValueType, ptrdiff_t, void, ValueType>
+    class ring_buffer_iterator: public std::iterator<std::forward_iterator_tag, ValueType, ptrdiff_t, void, ValueType>
     {
         template<typename Iter>
         friend bool is_iter_up_to_date(Iter it) noexcept;
@@ -199,9 +205,9 @@ namespace funny_it
 
         constexpr class_type & operator +=(int n)
         {
-            throw_if_iter_outdated(*this);
+            throw_if_iter_outdated(*this, E());
             auto tmp_ptr = sequence_->bbegin() + ((ptr_ + n - sequence_->bbegin()) % sequence_->bsize());
-            throw_if_iter_invalid(class_type (sequence_, tmp_ptr));
+            throw_if_iter_invalid(class_type (sequence_, tmp_ptr), E());
             std::swap(tmp_ptr, ptr_);
             return *this;
         }
@@ -268,6 +274,12 @@ namespace funny_it
         V * tail_ = bbegin();
         unsigned up_to_date_flag = 0;
 
+        void update_up_to_date_flag(exception_checked_variant_type) noexcept
+        {
+            ++up_to_date_flag;
+        }
+        void update_up_to_date_flag(exception_unchecked_variant_type) noexcept {}
+
     public:
         using class_type = ring_buffer_sequence<V,N>;
         using inherited_class_type = ring_buffer_base<V,N>;
@@ -298,7 +310,15 @@ namespace funny_it
             {
                 tail_ = tail_iter.ptr_;
                 head_ = head_iter.ptr_;
-                ++up_to_date_flag;
+                update_up_to_date_flag(E());
+            }
+        }
+        void unchecked_reset(const_iterator const & tail_iter, const_iterator const & head_iter) noexcept
+        {
+            if ((tail_iter.ptr_ != tail_) || (head_iter.ptr_ != head_))
+            {
+                tail_ = tail_iter.ptr_;
+                head_ = head_iter.ptr_;
             }
         }
 
@@ -368,8 +388,7 @@ namespace funny_it
          */
         constexpr void align (const_iterator it)
         {
-            throw_if_iterator_abnormal(it, E());
-            tail_ = std::addressof(*it);
+            tail_ = it.ptr_;
         }
 
         constexpr decltype(N) size() const noexcept
